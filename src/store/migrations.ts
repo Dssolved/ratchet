@@ -10,11 +10,50 @@
 
 import type { AppData } from '../domain/types.ts'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
+
+type Loose = Record<string, unknown>
+
+function asArray(value: unknown): Loose[] {
+  return Array.isArray(value) ? (value as Loose[]) : []
+}
 
 /** Ключ N — миграция из версии N-1 в версию N. */
-const migrations: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {
-  // 2: (data) => { ... },
+const migrations: Record<number, (data: Loose) => Loose> = {
+  /**
+   * v2: у Workout появился movementIds — план конкретной тренировки.
+   * Для уже записанных тренировок восстанавливаем его из движений, которые в них
+   * реально встречаются, сохраняя порядок появления; если подходов не было —
+   * из шаблона, на который тренировка ссылалась.
+   */
+  2: (data) => {
+    const sets = asArray(data.sets)
+    const templates = asArray(data.templates)
+
+    // data — свежий результат JSON.parse, копия принадлежит нам, правим на месте
+    for (const workout of asArray(data.workouts)) {
+      if (Array.isArray(workout.movementIds)) continue
+
+      const seen: string[] = []
+      for (const set of sets) {
+        if (set.workoutId !== workout.id) continue
+        const movementId = set.movementId
+        if (typeof movementId === 'string' && !seen.includes(movementId)) {
+          seen.push(movementId)
+        }
+      }
+
+      if (seen.length === 0) {
+        const template = templates.find((t) => t.id === workout.templateId)
+        const fromTemplate = template?.movementIds
+        if (Array.isArray(fromTemplate)) seen.push(...(fromTemplate as string[]))
+      }
+
+      workout.movementIds = seen
+    }
+
+    return data
+  },
 }
 
 export function migrateData(data: unknown, fromVersion: number): AppData {
@@ -28,7 +67,7 @@ export function migrateData(data: unknown, fromVersion: number): AppData {
     )
   }
 
-  let result = data as Record<string, unknown>
+  let result = data as Loose
   for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
     const migration = migrations[version]
     if (migration) result = migration(result)
