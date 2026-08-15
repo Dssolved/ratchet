@@ -59,6 +59,21 @@ export function currentWeekKey(): string {
   return isoWeekKey(new Date())
 }
 
+/** Понедельник той недели, в которую попадает дата. */
+export function weekStart(date: Date): Date {
+  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const mondayBased = (copy.getDay() + 6) % 7
+  copy.setDate(copy.getDate() - mondayBased)
+  return copy
+}
+
+/** Сдвиг на N дней. Через setDate, поэтому переход на летнее время не ломает счёт. */
+export function addDays(date: Date, days: number): Date {
+  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  copy.setDate(copy.getDate() + days)
+  return copy
+}
+
 /** Разница в календарных днях между двумя локальными датами. */
 export function daysBetween(from: string, to: string): number {
   const a = parseLocalDate(from)

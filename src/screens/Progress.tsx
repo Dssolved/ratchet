@@ -1,6 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 
-import { movementById, readiness } from '../domain/selectors.ts'
+import {
+  achievements,
+  weeklyStreak,
+  type AchievementKind,
+} from '../domain/achievements.ts'
+import { movementById, readiness, weekProgress } from '../domain/selectors.ts'
 import { movementChart, PERIODS, totalsByMovement, type Period } from '../domain/stats.ts'
 import { currentStep, isMeasured, type AppData, type Movement } from '../domain/types.ts'
 import { plural, pluralize } from '../lib/plural.ts'
@@ -29,7 +34,9 @@ export default function Progress({ data }: { data: AppData }) {
           ))}
       </section>
 
+      <Streaks data={data} />
       <Totals data={data} />
+      <Achievements data={data} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-label tracking-wider text-muted uppercase">История</h2>
@@ -174,6 +181,88 @@ function MovementDetail({
         </section>
       )}
     </div>
+  )
+}
+
+function Streaks({ data }: { data: AppData }) {
+  const streak = weeklyStreak(data)
+  const week = weekProgress(data)
+
+  return (
+    <section className="flex gap-2">
+      <div className="flex-1 rounded-card border border-border bg-surface px-4 py-3">
+        <p className="font-num text-set font-semibold text-accent-ink">{streak.current}</p>
+        <p className="text-body text-muted">
+          {plural(streak.current, 'неделя', 'недели', 'недель')} подряд
+        </p>
+      </div>
+      <div className="flex-1 rounded-card border border-border bg-surface px-4 py-3">
+        <p className="font-num text-set font-semibold">
+          {week.done}
+          <span className="text-muted">/{week.target}</span>
+        </p>
+        <p className="text-body text-muted">на этой неделе</p>
+      </div>
+      <div className="flex-1 rounded-card border border-border bg-surface px-4 py-3">
+        <p className="font-num text-set font-semibold">{streak.longest}</p>
+        <p className="text-body text-muted">рекорд стрика</p>
+      </div>
+    </section>
+  )
+}
+
+const KIND_LABEL: Record<AchievementKind, string> = {
+  step: '⚙',
+  record: '★',
+  volume: '∑',
+  streak: '▲',
+}
+
+function Achievements({ data }: { data: AppData }) {
+  const [expanded, setExpanded] = useState(false)
+  const all = achievements(data)
+  if (all.length === 0) return null
+
+  const shown = expanded ? all : all.slice(0, 8)
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-label tracking-wider text-muted uppercase">Достижения</h2>
+      {shown.map((item) => (
+        <div
+          key={item.id}
+          className={`flex items-baseline gap-3 rounded-ctl border px-3 py-2 ${
+            item.kind === 'step'
+              ? 'border-accent-ink/40 bg-accent/10'
+              : 'border-border bg-surface'
+          }`}
+        >
+          <span
+            className={`w-4 shrink-0 text-center ${
+              item.kind === 'step' ? 'text-accent-ink' : 'text-muted'
+            }`}
+            aria-hidden="true"
+          >
+            {KIND_LABEL[item.kind]}
+          </span>
+          <span className="flex-1">
+            <span className="block text-body">{item.title}</span>
+            <span className="block text-label text-muted">{item.detail}</span>
+          </span>
+          {item.date && <span className="font-num text-label text-muted">{item.date.slice(5)}</span>}
+        </div>
+      ))}
+
+      {all.length > 8 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="min-h-12 rounded-ctl border border-border text-body text-muted"
+        >
+          {expanded ? 'свернуть' : `показать все (${all.length})`}
+        </button>
+      )}
+    </section>
   )
 }
 

@@ -1,6 +1,8 @@
+import { weeklyStreak } from '../domain/achievements.ts'
 import { suggestedTemplateId, weekProgress } from '../domain/selectors.ts'
 import type { AppData } from '../domain/types.ts'
 import MovementCard from '../components/MovementCard.tsx'
+import { plural } from '../lib/plural.ts'
 import { useStore } from '../store/useStore.ts'
 
 interface Props {
@@ -13,6 +15,7 @@ export default function Today({ data, onStarted }: Props) {
   const startWorkout = useStore((s) => s.startWorkout)
   const suggested = suggestedTemplateId(data)
   const week = weekProgress(data)
+  const streak = weeklyStreak(data)
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,9 +50,17 @@ export default function Today({ data, onStarted }: Props) {
         })}
       </section>
 
-      <p className="text-body text-muted">
-        <span className="font-num text-text">{week.done}</span> из{' '}
-        <span className="font-num text-text">{week.target}</span> на этой неделе
+      <p className="flex items-baseline justify-between gap-3 text-body text-muted">
+        <span>
+          <span className="font-num text-text">{week.done}</span> из{' '}
+          <span className="font-num text-text">{week.target}</span> на этой неделе
+        </span>
+        {streak.current > 0 && (
+          <span className="text-accent-ink">
+            стрик <span className="font-num">{streak.current}</span>{' '}
+            {plural(streak.current, 'неделя', 'недели', 'недель')}
+          </span>
+        )}
       </p>
 
       <section className="flex flex-col gap-2">
