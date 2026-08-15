@@ -26,8 +26,32 @@ Android Studio построена на IntelliJ, интерфейс будет �
 | Gradle | 8.14.3 | скачается сам через wrapper |
 | Android Gradle Plugin | 8.13.0 | зафиксирован в `android/build.gradle` |
 
-**Отдельный JDK ставить не нужно** — Android Studio приносит свой и использует его
-для сборки. Установленная в системе Java 8 роли не играет и трогать её не надо.
+### JDK: нужен именно 21, не тот, что принесла Android Studio
+
+Документация Capacitor обещает, что отдельный JDK не нужен. **На этой машине это неверно**,
+и вот почему:
+
+- Android Studio принесла **JBR 25**;
+- Capacitor сгенерировал **Gradle 8.14.3**, а он поддерживает Java максимум **24**
+  (по официальной матрице совместимости Gradle, Java 25 умеет только Gradle 9.1+);
+- сборка падает с `Unsupported class file major version 69` — 69 это Java 25.
+
+Поэтому поставлен **Eclipse Temurin JDK 21**:
+
+```
+winget install --id EclipseAdoptium.Temurin.21.JDK --source winget
+```
+
+Путь: `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot`
+
+Альтернативой было поднять Gradle до 9.x, но тогда AGP 8.13 оказался бы на Gradle 9,
+на который официально не рассчитан — менять два звена сборки сразу ради обхода не стоит.
+
+Системная Java 8 роли не играет, трогать её не надо. Но **`gradlew` берёт JVM из `JAVA_HOME`
+или из `PATH`**, а там как раз Java 8, поэтому при сборке из терминала `JAVA_HOME` надо
+задавать явно — см. ниже. Если собирать через Android Studio, там свой параметр:
+**Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK**, его тоже
+надо переключить на 21.
 
 ## Основной цикл разработки — без Android вообще
 
@@ -69,10 +93,13 @@ New-NetFirewallRule -DisplayName "Vite dev 5173" -Direction Inbound -LocalPort 5
 npm run android:sync
 ```
 
-Собирает веб-часть и переносит её в android-проект. Дальше либо из терминала:
+Собирает веб-часть и переносит её в android-проект. Дальше из терминала — **обязательно
+с явным `JAVA_HOME`**, иначе `gradlew` возьмёт из `PATH` системную Java 8 и упадёт:
 
-```bash
-cd android && ./gradlew assembleDebug
+```
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
+cd android
+.\gradlew.bat assembleDebug
 ```
 
 APK окажется в `android/app/build/outputs/apk/debug/app-debug.apk`. Установка:
@@ -84,8 +111,12 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 Либо `npm run android:open` — откроется Android Studio, дальше кнопка Run. Так удобнее,
 когда что-то сломалось в Gradle и нужны его подробные сообщения.
 
-**Первая сборка идёт долго** (несколько минут): Gradle скачивает себя и зависимости.
-Последующие — секунды.
+**Первая сборка идёт долго** — на этой машине заняла 11.5 минут: Gradle скачивает себя,
+зависимости AndroidX, а также недостающие компоненты SDK. Последующие сборки — секунды.
+
+Кстати, **SDK Platform 36 и Build-Tools 35 Gradle доставил сам**: лицензия уже была принята
+мастером Android Studio, и AGP докачал недостающее. Ставить их руками через SDK Manager
+не потребовалось.
 
 ## Проверка уведомлений
 
