@@ -41,7 +41,6 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
   const open = openId ?? firstPending ?? null
 
   const logged = setsOfWorkout(data, workout.id).length
-  const allDone = planned.length > 0 && planned.every((id) => isComplete(data, workout.id, id))
   const available = data.movements.filter((m) => !m.archived && !planned.includes(m.id))
 
   return (
@@ -135,9 +134,7 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
             finishWorkout(workout.id)
             onFinished(workout.id)
           }}
-          className={`min-h-14 rounded-ctl font-semibold ${
-            allDone ? "bg-accent text-on-accent" : "border border-border text-text"
-          }`}
+          className="min-h-14 rounded-ctl bg-accent font-semibold text-on-accent"
         >
           Завершить тренировку
         </button>
@@ -147,7 +144,7 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
             if (logged > 0 && !confirm('Удалить тренировку вместе с записанными подходами?')) return
             deleteWorkout(workout.id)
           }}
-          className="min-h-12 rounded-ctl text-body text-muted"
+          className="min-h-12 rounded-ctl border border-danger/40 text-body text-danger"
         >
           Отменить тренировку
         </button>
