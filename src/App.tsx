@@ -4,6 +4,7 @@ import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
 import { ensureRestChannel } from './lib/notifications.ts'
 import { useWakeLock } from './lib/useWakeLock.ts'
+import Profile from './screens/Profile.tsx'
 import Progress from './screens/Progress.tsx'
 import Settings from './screens/Settings.tsx'
 import Summary from './screens/Summary.tsx'
@@ -12,11 +13,12 @@ import WorkoutScreen from './screens/Workout.tsx'
 import { useData } from './store/useStore.ts'
 import { useHydrated } from './store/useHydrated.ts'
 
-type Tab = 'today' | 'progress' | 'settings'
+type Tab = 'today' | 'progress' | 'profile' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'today', label: 'Сегодня' },
   { id: 'progress', label: 'Прогресс' },
+  { id: 'profile', label: 'Профиль' },
   { id: 'settings', label: 'Настройки' },
 ]
 
@@ -57,6 +59,8 @@ export default function App() {
           ))}
 
         {tab === 'progress' && <Progress data={data} />}
+
+        {tab === 'profile' && <Profile data={data} />}
 
         {tab === 'settings' && <Settings data={data} />}
       </main>

@@ -65,6 +65,25 @@ export function totalsByMovement(data: AppData, period: Period): MovementTotal[]
   return [...totals.values()].toSorted((a, b) => b.reps - a.reps)
 }
 
+/**
+ * Вехи по объёму — ПО КАЖДОМУ УПРАЖНЕНИЮ, а не по общей сумме.
+ *
+ * «10 000 отжиманий» — факт, который можно произнести вслух. «10 000 повторений всего» —
+ * каша из подтягиваний, приседаний и планки, которая не значит ничего.
+ */
+export const REP_MILESTONES = [500, 1000, 2500, 5000, 10_000, 25_000, 50_000, 100_000]
+
+/** Для секундных упражнений вехи во времени удержания: 30 мин, 1 ч, 5 ч, 10 ч, сутки. */
+export const HOLD_MILESTONES = [1800, 3600, 18_000, 36_000, 86_400]
+
+export function nextMilestone(value: number, milestones: number[]): number | undefined {
+  return milestones.find((m) => m > value)
+}
+
+export function lastMilestone(value: number, milestones: number[]): number | undefined {
+  return milestones.findLast((m) => m <= value)
+}
+
 export interface PersonalRecord {
   movementId: string
   movementName: string
