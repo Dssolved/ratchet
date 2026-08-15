@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 
+import Sandbox from './design/Sandbox.tsx'
 import { currentStep, isMeasured, type Movement } from './domain/types.ts'
 import { downloadBackup, importBackupFile } from './lib/backup.ts'
 import { pluralize } from './lib/plural.ts'
@@ -12,6 +13,30 @@ import { useHydrated } from './store/useHydrated.ts'
  * Настоящий интерфейс тренировки приходит на шаге 1 (docs/ux.md).
  */
 export default function App() {
+  const [screen, setScreen] = useState<'design' | 'data'>('design')
+
+  return (
+    <>
+      <div className="flex gap-2 px-3 pt-3">
+        {(['design', 'data'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setScreen(value)}
+            className={`min-h-11 flex-1 rounded-lg px-3 text-sm font-medium ${
+              screen === value ? 'bg-white text-neutral-900' : 'bg-neutral-800 text-neutral-300'
+            }`}
+          >
+            {value === 'design' ? 'Дизайн' : 'Данные'}
+          </button>
+        ))}
+      </div>
+      {screen === 'design' ? <Sandbox /> : <DataScreen />}
+    </>
+  )
+}
+
+function DataScreen() {
   const hydrated = useHydrated()
   const movements = useStore((s) => s.movements)
   const templates = useStore((s) => s.templates)
