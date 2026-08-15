@@ -2,7 +2,15 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
 
-import type { AppData, SetEntry, Settings, Side } from '../domain/types.ts'
+import type {
+  AppData,
+  Movement,
+  SetEntry,
+  Settings,
+  Side,
+  Step,
+  Template,
+} from '../domain/types.ts'
 import { localDateString } from '../domain/dates.ts'
 import { createSeedData } from '../data/seed.ts'
 import { migrateData, SCHEMA_VERSION } from './migrations.ts'
@@ -40,6 +48,22 @@ interface Actions {
   /** Откат вниз. Записывается в лог, но maxReachedStepOrder не убывает. */
   rollbackStep: (movementId: string) => void
 
+  // --- справочник ---
+  addMovement: () => string
+  updateMovement: (id: string, patch: Partial<Omit<Movement, 'id' | 'steps'>>) => void
+  /** Удаляет упражнение. Вызывать только если по нему нет подходов. */
+  deleteMovement: (id: string) => void
+
+  addStep: (movementId: string, kind: Step['kind']) => void
+  updateStep: (movementId: string, stepId: string, patch: Partial<Step>) => void
+  deleteStep: (movementId: string, stepId: string) => void
+  /** Переставляет ступень на позицию выше или ниже. */
+  moveStep: (movementId: string, stepId: string, delta: -1 | 1) => void
+
+  addTemplate: () => string
+  updateTemplate: (id: string, patch: Partial<Omit<Template, 'id'>>) => void
+  deleteTemplate: (id: string) => void
+
   updateSettings: (patch: Partial<Settings>) => void
 
   /** Полная замена данных — используется импортом JSON. */
@@ -52,6 +76,21 @@ export type Store = AppData & Actions
 
 function newId(): string {
   return crypto.randomUUID()
+}
+
+/**
+ * После перестановки или удаления ступеней рекорд должен остаться привязанным
+ * к той же ступени, а не к номеру позиции. Если ступень-рекорд удалили —
+ * прижимаем к границе лестницы.
+ */
+function resolveRecordOrder(
+  steps: Step[],
+  recordStepId: string | undefined,
+  fallback: number,
+): number {
+  const found = steps.find((s) => s.id === recordStepId)
+  if (found) return found.order
+  return Math.min(fallback, steps.length)
 }
 
 export const useStore = create<Store>()(
@@ -277,6 +316,173 @@ export const useStore = create<Store>()(
             ],
           }
         })
+      },
+
+      addMovement: () => {
+        const id = newId()
+        const stepId = newId()
+        set((state) => ({
+          movements: [
+            ...state.movements,
+            {
+              id,
+              name: 'Новое упражнение',
+              category: 'pull',
+              steps: [
+                {
+                  id: stepId,
+                  order: 1,
+                  name: 'Первая ступень',
+                  kind: 'measured',
+                  unit: 'reps',
+                  progressBy: 'variant',
+                  repMin: 6,
+                  repMax: 10,
+                  targetSets: 3,
+                },
+              ],
+              currentStepId: stepId,
+              maxReachedStepOrder: 1,
+              archived: false,
+              sortOrder: state.movements.length + 1,
+            },
+          ],
+        }))
+        return id
+      },
+
+      updateMovement: (id, patch) => {
+        set((state) => ({
+          movements: state.movements.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+        }))
+      },
+
+      deleteMovement: (id) => {
+        set((state) => ({
+          movements: state.movements.filter((m) => m.id !== id),
+          // упражнение исчезает и из планов тренировок, и из шаблонов
+          templates: state.templates.map((t) => ({
+            ...t,
+            movementIds: t.movementIds.filter((mid) => mid !== id),
+          })),
+          workouts: state.workouts.map((w) => ({
+            ...w,
+            movementIds: w.movementIds.filter((mid) => mid !== id),
+          })),
+        }))
+      },
+
+      addStep: (movementId, kind) => {
+        set((state) => ({
+          movements: state.movements.map((m) => {
+            if (m.id !== movementId) return m
+            const order = m.steps.reduce((max, s) => Math.max(max, s.order), 0) + 1
+            const base = { id: newId(), order, name: `Ступень ${order}` }
+            const step: Step =
+              kind === 'binary'
+                ? { ...base, kind: 'binary' }
+                : {
+                    ...base,
+                    kind: 'measured',
+                    unit: 'reps',
+                    progressBy: 'variant',
+                    repMin: 6,
+                    repMax: 10,
+                    targetSets: 3,
+                  }
+            return { ...m, steps: [...m.steps, step] }
+          }),
+        }))
+      },
+
+      updateStep: (movementId, stepId, patch) => {
+        set((state) => ({
+          movements: state.movements.map((m) =>
+            m.id === movementId
+              ? {
+                  ...m,
+                  steps: m.steps.map((s) => (s.id === stepId ? ({ ...s, ...patch } as Step) : s)),
+                }
+              : m,
+          ),
+        }))
+      },
+
+      deleteStep: (movementId, stepId) => {
+        set((state) => ({
+          movements: state.movements.map((m) => {
+            if (m.id !== movementId) return m
+            if (m.steps.length <= 1 || m.currentStepId === stepId) return m
+
+            const recordStepId = m.steps.find((s) => s.order === m.maxReachedStepOrder)?.id
+            const kept = m.steps
+              .filter((s) => s.id !== stepId)
+              .toSorted((a, b) => a.order - b.order)
+              // Мутировать нельзя: zustand сравнивает по ссылке, и без новых
+              // объектов React не перерисует список ступеней.
+              // oxlint-disable-next-line no-map-spread
+              .map((s, index) => ({ ...s, order: index + 1 }))
+
+            return {
+              ...m,
+              steps: kept,
+              maxReachedStepOrder: resolveRecordOrder(kept, recordStepId, m.maxReachedStepOrder),
+            }
+          }),
+        }))
+      },
+
+      moveStep: (movementId, stepId, delta) => {
+        set((state) => ({
+          movements: state.movements.map((m) => {
+            if (m.id !== movementId) return m
+
+            const ordered = m.steps.toSorted((a, b) => a.order - b.order)
+            const from = ordered.findIndex((s) => s.id === stepId)
+            const to = from + delta
+            if (from === -1 || to < 0 || to >= ordered.length) return m
+
+            const recordStepId = ordered.find((s) => s.order === m.maxReachedStepOrder)?.id
+
+            const moved = [...ordered]
+            const [taken] = moved.splice(from, 1)
+            if (!taken) return m
+            moved.splice(to, 0, taken)
+
+            // oxlint-disable-next-line no-map-spread -- см. комментарий в deleteStep
+            const renumbered = moved.map((s, index) => ({ ...s, order: index + 1 }))
+
+            return {
+              ...m,
+              steps: renumbered,
+              // рекорд привязан к конкретной ступени, а не к номеру: после
+              // перестановки он должен следовать за той же ступенью
+              maxReachedStepOrder: resolveRecordOrder(
+                renumbered,
+                recordStepId,
+                m.maxReachedStepOrder,
+              ),
+            }
+          }),
+        }))
+      },
+
+      addTemplate: () => {
+        const id = newId()
+        set((state) => ({
+          templates: [...state.templates, { id, name: 'Новый день', movementIds: [] }],
+        }))
+        return id
+      },
+
+      updateTemplate: (id, patch) => {
+        set((state) => ({
+          templates: state.templates.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        }))
+      },
+
+      deleteTemplate: (id) => {
+        set((state) => ({ templates: state.templates.filter((t) => t.id !== id) }))
       },
 
       updateSettings: (patch) => {

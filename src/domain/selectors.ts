@@ -178,6 +178,22 @@ export function maxWeightOnStep(data: AppData, movementId: string, stepId: strin
     .reduce((max, s) => Math.max(max, s.weightKg ?? 0), 0)
 }
 
+/**
+ * Есть ли записанные подходы по ступени.
+ *
+ * Правило редактора: пока истории нет — менять можно всё; как только появились
+ * подходы, запрещены изменения, обесценивающие уже записанное (единица измерения
+ * и тип ступени), а также удаление. Остальное — диапазоны, название, отдых —
+ * правится свободно: оно влияет только на будущее.
+ */
+export function stepHasSets(data: AppData, stepId: string): boolean {
+  return data.sets.some((s) => s.stepId === stepId)
+}
+
+export function movementHasSets(data: AppData, movementId: string): boolean {
+  return data.sets.some((s) => s.movementId === movementId)
+}
+
 export interface WeekProgress {
   done: number
   target: number

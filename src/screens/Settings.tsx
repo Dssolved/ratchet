@@ -10,6 +10,8 @@ import {
 } from '../lib/notifications.ts'
 import { pluralize } from '../lib/plural.ts'
 import { selectData, useStore } from '../store/useStore.ts'
+import ExerciseEditor from './ExerciseEditor.tsx'
+import TemplateEditor from './TemplateEditor.tsx'
 
 /**
  * Проверка того, ради чего приложение вообще собирается в APK: доходит ли
@@ -69,7 +71,105 @@ function formatRest(seconds: number): string {
   return rest === 0 ? `${minutes}:00` : `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
+type View = { kind: 'root' } | { kind: 'exercise'; id: string } | { kind: 'template'; id: string }
+
 export default function Settings({ data }: { data: AppData }) {
+  const [view, setView] = useState<View>({ kind: 'root' })
+
+  if (view.kind === 'exercise') {
+    const movement = data.movements.find((m) => m.id === view.id)
+    if (movement) {
+      return (
+        <ExerciseEditor
+          data={data}
+          movement={movement}
+          onBack={() => setView({ kind: 'root' })}
+        />
+      )
+    }
+  }
+
+  if (view.kind === 'template') {
+    const template = data.templates.find((t) => t.id === view.id)
+    if (template) {
+      return (
+        <TemplateEditor data={data} template={template} onBack={() => setView({ kind: 'root' })} />
+      )
+    }
+  }
+
+  return <SettingsRoot data={data} onOpen={setView} />
+}
+
+function Catalog({ data, onOpen }: { data: AppData; onOpen: (view: View) => void }) {
+  const addMovement = useStore((s) => s.addMovement)
+  const addTemplate = useStore((s) => s.addTemplate)
+
+  return (
+    <>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-label tracking-wider text-muted uppercase">Упражнения</h2>
+        {data.movements.map((movement) => (
+          <button
+            key={movement.id}
+            type="button"
+            onClick={() => onOpen({ kind: 'exercise', id: movement.id })}
+            className="flex min-h-12 items-baseline justify-between gap-2 rounded-ctl border border-border bg-surface px-3 py-2 text-left"
+          >
+            <span>
+              <span className={movement.archived ? 'text-muted line-through' : ''}>
+                {movement.name}
+              </span>
+              <span className="block text-body text-muted">
+                {movement.steps.find((s) => s.id === movement.currentStepId)?.name}
+              </span>
+            </span>
+            <span className="font-num text-label text-muted">
+              {movement.maxReachedStepOrder} / {movement.steps.length}
+            </span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onOpen({ kind: 'exercise', id: addMovement() })}
+          className="min-h-12 rounded-ctl border border-border text-body text-muted"
+        >
+          + упражнение
+        </button>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-label tracking-wider text-muted uppercase">Дни</h2>
+        {data.templates.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => onOpen({ kind: 'template', id: template.id })}
+            className="rounded-ctl border border-border bg-surface px-3 py-2 text-left"
+          >
+            <span className="block">{template.name}</span>
+            <span className="block text-body text-muted">
+              {template.movementIds.length > 0
+                ? template.movementIds
+                    .map((id) => data.movements.find((m) => m.id === id)?.name ?? id)
+                    .join(' · ')
+                : 'пусто'}
+            </span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onOpen({ kind: 'template', id: addTemplate() })}
+          className="min-h-12 rounded-ctl border border-border text-body text-muted"
+        >
+          + день
+        </button>
+      </section>
+    </>
+  )
+}
+
+function SettingsRoot({ data, onOpen }: { data: AppData; onOpen: (view: View) => void }) {
   const replaceAll = useStore((s) => s.replaceAll)
   const resetToSeed = useStore((s) => s.resetToSeed)
   const updateSettings = useStore((s) => s.updateSettings)
@@ -96,10 +196,30 @@ export default function Settings({ data }: { data: AppData }) {
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="text-label tracking-wider text-muted uppercase">Тренировки</h2>
-        <p className="text-body text-muted">
-          Цель: <span className="font-num text-text">{data.settings.weeklyTarget}</span> тренировки
-          в неделю.
-        </p>
+        <div className="flex items-center gap-3 rounded-ctl border border-border bg-surface px-4 py-3">
+          <span className="flex-1">Тренировок в неделю</span>
+          <button
+            type="button"
+            onClick={() =>
+              updateSettings({ weeklyTarget: Math.max(1, data.settings.weeklyTarget - 1) })
+            }
+            className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+            aria-label="Убавить цель"
+          >
+            −
+          </button>
+          <span className="w-16 text-center font-num text-value">{data.settings.weeklyTarget}</span>
+          <button
+            type="button"
+            onClick={() =>
+              updateSettings({ weeklyTarget: Math.min(7, data.settings.weeklyTarget + 1) })
+            }
+            className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+            aria-label="Прибавить цель"
+          >
+            +
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 rounded-ctl border border-border bg-surface px-4 py-3">
           <span className="flex-1">
@@ -111,7 +231,9 @@ export default function Settings({ data }: { data: AppData }) {
           <button
             type="button"
             onClick={() =>
-              updateSettings({ defaultRestSec: Math.max(30, data.settings.defaultRestSec - 30) })
+              updateSettings({
+                defaultRestSec: Math.max(30, data.settings.defaultRestSec - 30),
+              })
             }
             className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
             aria-label="Убавить отдых"
@@ -162,10 +284,9 @@ export default function Settings({ data }: { data: AppData }) {
           нажатия, а батарея садится быстрее.
         </p>
 
-        <p className="text-body text-muted">
-          Правка справочника упражнений и ступеней появится вместе с храповиком на шаге 4.
-        </p>
       </section>
+
+      <Catalog data={data} onOpen={onOpen} />
 
       <NotificationCheck />
 
