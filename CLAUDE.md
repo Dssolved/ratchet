@@ -24,12 +24,12 @@
 | `zustand` | 5.0.15 | состояние |
 | `idb-keyval` | 6.3.0 | persist в IndexedDB |
 | `recharts` | 3.10.1 | графики |
-| `vite-plugin-pwa` | 1.3.0 | манифест, service worker |
 | `@capacitor/*` | 8.5.0 | обёртка в APK |
 | `@capacitor/app` | 8.1.1 | системная кнопка «Назад» |
 | `@capacitor/local-notifications` | 8.3.0 | таймер отдыха при потушенном экране |
 | `@capacitor/haptics` | 8.0.2 | вибрация на подходах |
-| `@capacitor/filesystem` | 8.1.2 | экспорт JSON в файл |
+| `@capacitor/filesystem` | 8.1.2 | запись бэкапа в файл на устройстве |
+| `@capacitor/share` | 8.0.1 | отдать бэкап в системное «Поделиться» |
 | `@capacitor/assets` | 3.0.5 | генерация иконок и экрана запуска (dev) |
 
 Требования к окружению: Node `^20.19 || >=22.12` (стоит 24.18).

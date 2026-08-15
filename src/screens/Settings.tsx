@@ -301,7 +301,15 @@ function SettingsRoot({ data, onOpen }: { data: AppData; onOpen: (view: View) =>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => downloadBackup(selectData(useStore.getState()))}
+            onClick={async () => {
+              try {
+                await downloadBackup(selectData(useStore.getState()))
+              } catch (error) {
+                // отмена системного «Поделиться» тоже приходит сюда — это не ошибка
+                const text = error instanceof Error ? error.message : String(error)
+                if (!/cancel/i.test(text)) setMessage({ text, error: true })
+              }
+            }}
             className="min-h-12 rounded-ctl border border-border bg-surface-2 px-4 font-medium"
           >
             Экспорт JSON

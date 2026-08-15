@@ -5,6 +5,10 @@
  * их не потерять. См. docs/decisions.md#д-1.
  */
 
+import { Capacitor } from '@capacitor/core'
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
+
 import type { AppData } from '../domain/types.ts'
 import { localDateString } from '../domain/dates.ts'
 import { migrateData, SCHEMA_VERSION } from '../store/migrations.ts'
@@ -33,22 +37,40 @@ export function backupFileName(): string {
 }
 
 /**
- * Скачивание файла в браузере.
+ * Сохранение бэкапа.
  *
- * ВНИМАНИЕ: внутри Capacitor WebView ссылка с download работает ненадёжно. Если
- * экспорт на телефоне начнёт молча не срабатывать — добавить ветку через
- * @capacitor/filesystem. Пока не понадобилось.
+ * На телефоне и в браузере это принципиально разные механизмы, и подменить одно
+ * другим нельзя: **внутри Capacitor WebView ссылка с `download` молча не работает** —
+ * для неё нужен нативный DownloadListener, которого там нет. Нажатие просто ничего
+ * не делает, без ошибки. Для единственного бэкапа приложения это недопустимо.
+ *
+ * Поэтому на устройстве файл пишется через Filesystem и отдаётся в системный «Поделиться»:
+ * так его можно сразу отправить в облако или мессенджер, а не искать в папке загрузок.
  */
-export function downloadBackup(data: AppData): void {
+export async function downloadBackup(data: AppData): Promise<void> {
   const json = JSON.stringify(buildBackup(data), null, 2)
+  const name = backupFileName()
+
+  if (Capacitor.isNativePlatform()) {
+    const written = await Filesystem.writeFile({
+      path: name,
+      data: json,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    })
+    await Share.share({
+      title: 'Бэкап Ratchet',
+      files: [written.uri],
+    })
+    return
+  }
+
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
-
   const link = document.createElement('a')
   link.href = url
-  link.download = backupFileName()
+  link.download = name
   link.click()
-
   URL.revokeObjectURL(url)
 }
 
