@@ -8,6 +8,7 @@ import {
   scheduleIn,
   TEST_NOTIFICATION_ID,
 } from '../lib/notifications.ts'
+import { useBackHandler } from '../lib/backHandler.ts'
 import { pluralize } from '../lib/plural.ts'
 import { selectData, useStore } from '../store/useStore.ts'
 import ExerciseEditor from './ExerciseEditor.tsx'
@@ -75,6 +76,8 @@ type View = { kind: 'root' } | { kind: 'exercise'; id: string } | { kind: 'templ
 
 export default function Settings({ data }: { data: AppData }) {
   const [view, setView] = useState<View>({ kind: 'root' })
+
+  useBackHandler(view.kind !== 'root', () => setView({ kind: 'root' }))
 
   if (view.kind === 'exercise') {
     const movement = data.movements.find((m) => m.id === view.id)

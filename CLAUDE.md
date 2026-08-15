@@ -26,6 +26,7 @@
 | `recharts` | 3.10.1 | графики |
 | `vite-plugin-pwa` | 1.3.0 | манифест, service worker |
 | `@capacitor/*` | 8.5.0 | обёртка в APK |
+| `@capacitor/app` | 8.1.1 | системная кнопка «Назад» |
 | `@capacitor/local-notifications` | 8.3.0 | таймер отдыха при потушенном экране |
 | `@capacitor/haptics` | 8.0.2 | вибрация на подходах |
 | `@capacitor/filesystem` | 8.1.2 | экспорт JSON в файл |

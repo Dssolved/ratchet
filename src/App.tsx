@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 
 import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
+import { useBackHandler } from './lib/backHandler.ts'
 import { ensureRestChannel } from './lib/notifications.ts'
+import { useSystemBack } from './lib/useSystemBack.ts'
 import { useWakeLock } from './lib/useWakeLock.ts'
 import Profile from './screens/Profile.tsx'
 import Progress from './screens/Progress.tsx'
@@ -38,6 +40,17 @@ export default function App() {
   }, [])
 
   useWakeLock(active !== undefined && data.settings.keepScreenOn)
+
+  // «Назад» с экрана итога закрывает его, как кнопка «Готово»
+  useBackHandler(finishedId !== null, () => setFinishedId(null))
+
+  // корневой уровень: с любой вкладки возвращаемся на «Сегодня»,
+  // и только с неё выходим из приложения
+  useSystemBack(() => {
+    if (tab === 'today') return false
+    setTab('today')
+    return true
+  })
 
   if (!hydrated) {
     return <div className="p-6 text-body text-muted">Загрузка…</div>

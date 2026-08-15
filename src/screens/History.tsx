@@ -16,6 +16,7 @@ import {
   type SetEntry,
   type Workout,
 } from '../domain/types.ts'
+import { useBackHandler } from '../lib/backHandler.ts'
 import { plural } from '../lib/plural.ts'
 import { useStore } from '../store/useStore.ts'
 
@@ -24,6 +25,8 @@ const SIDE_LABEL = { both: '', left: 'Л', right: 'П' } as const
 export default function History({ data }: { data: AppData }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const workouts = workoutsNewestFirst(data).filter((w) => w.finishedAt !== undefined)
+
+  useBackHandler(openId !== null, () => setOpenId(null))
 
   if (workouts.length === 0) {
     return <p className="text-body text-muted">Тренировок пока нет.</p>

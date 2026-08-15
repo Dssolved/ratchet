@@ -4,6 +4,7 @@ import ExercisePanel from '../components/ExercisePanel.tsx'
 import RatchetCard from '../components/RatchetCard.tsx'
 import { movementById, readiness, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
 import { currentStep, isMeasured, type AppData, type Workout } from '../domain/types.ts'
+import { useBackHandler } from '../lib/backHandler.ts'
 import { pluralize } from '../lib/plural.ts'
 import { useStore } from '../store/useStore.ts'
 
@@ -31,6 +32,7 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  useBackHandler(adding, () => setAdding(false))
   /** упражнения, по которым переход уже решён в этой тренировке */
   const [handled, setHandled] = useState<string[]>([])
 

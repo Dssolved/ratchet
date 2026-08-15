@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react'
 import { movementById, readiness } from '../domain/selectors.ts'
 import { movementChart } from '../domain/stats.ts'
 import { currentStep, isMeasured, type AppData, type Movement } from '../domain/types.ts'
+import { useBackHandler } from '../lib/backHandler.ts'
 import History from './History.tsx'
 
 // recharts тяжёлый, а экран тренировки должен грузиться быстро —
@@ -13,6 +14,8 @@ export default function Progress({ data }: { data: AppData }) {
   const [openId, setOpenId] = useState<string | null>(null)
 
   const movement = openId ? movementById(data, openId) : undefined
+  useBackHandler(movement !== undefined, () => setOpenId(null))
+
   if (movement) {
     return <MovementDetail data={data} movement={movement} onBack={() => setOpenId(null)} />
   }
