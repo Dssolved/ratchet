@@ -5,6 +5,7 @@ import {
   weekProgress,
   workoutTotals,
 } from '../domain/selectors.ts'
+import { recordsInWorkout } from '../domain/stats.ts'
 import { currentStep, type AppData, type Workout } from '../domain/types.ts'
 import { plural } from '../lib/plural.ts'
 
@@ -18,6 +19,12 @@ interface Props {
 export default function Summary({ data, workout, onDone }: Props) {
   const totals = workoutTotals(data, workout)
   const week = weekProgress(data)
+  const records = recordsInWorkout(data, workout.id)
+  // переходы этой тренировки: StepChange хранит дату, а не id тренировки —
+  // для одной тренировки в день этого достаточно
+  const advanced = data.stepChanges.filter(
+    (c) => c.date === workout.date && c.direction === 'up',
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,6 +38,56 @@ export default function Summary({ data, workout, onDone }: Props) {
           {plural(totals.reps, 'повторение', 'повторения', 'повторений')}
         </p>
       </header>
+
+      {(records.length > 0 || advanced.length > 0) && (
+        <section className="flex flex-col gap-2">
+          {advanced.map((change) => {
+            const movement = movementById(data, change.movementId)
+            const step = movement?.steps.find((s) => s.order === change.toStepOrder)
+            return (
+              <div
+                key={change.id}
+                className="rounded-card border-2 border-accent-ink bg-accent/10 px-4 py-3"
+              >
+                <p className="text-label font-semibold tracking-wider text-accent-ink uppercase">
+                  Ступень взята
+                </p>
+                <p className="text-body">
+                  {movement?.name} · {step?.name}
+                  {change.toWeightKg !== undefined && (
+                    <>
+                      {' '}
+                      <span className="font-num">+{change.toWeightKg}</span> кг
+                    </>
+                  )}
+                </p>
+              </div>
+            )
+          })}
+
+          {records.map((record) => (
+            <div
+              key={`${record.movementId}-${record.stepName}`}
+              className="rounded-card border border-accent-ink/40 px-4 py-3"
+            >
+              <p className="text-label font-semibold tracking-wider text-accent-ink uppercase">
+                Рекорд
+              </p>
+              <p className="text-body">
+                {record.movementName} · {record.stepName} —{' '}
+                <span className="font-num text-text">{record.value}</span>
+                {record.unit === 'seconds' ? ' сек' : ''}
+                {record.previous > 0 && (
+                  <span className="text-muted">
+                    {' '}
+                    (было <span className="font-num">{record.previous}</span>)
+                  </span>
+                )}
+              </p>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         {workout.movementIds.map((movementId) => {

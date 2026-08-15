@@ -4,7 +4,7 @@ import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
 import { ensureRestChannel } from './lib/notifications.ts'
 import { useWakeLock } from './lib/useWakeLock.ts'
-import History from './screens/History.tsx'
+import Progress from './screens/Progress.tsx'
 import Settings from './screens/Settings.tsx'
 import Summary from './screens/Summary.tsx'
 import Today from './screens/Today.tsx'
@@ -56,13 +56,7 @@ export default function App() {
             <Today data={data} onStarted={() => setFinishedId(null)} />
           ))}
 
-        {tab === 'progress' && (
-          <div className="flex flex-col gap-3">
-            <h1 className="text-title font-semibold">История</h1>
-            <p className="text-body text-muted">Графики и лестницы ступеней придут на шаге 5.</p>
-            <History data={data} />
-          </div>
-        )}
+        {tab === 'progress' && <Progress data={data} />}
 
         {tab === 'settings' && <Settings data={data} />}
       </main>
