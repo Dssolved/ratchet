@@ -16,8 +16,7 @@ import TemplateEditor from './TemplateEditor.tsx'
 
 /**
  * Проверка того, ради чего приложение вообще собирается в APK: доходит ли
- * уведомление при потушенном экране. На шаге 3 этим же механизмом заработает
- * таймер отдыха.
+ * уведомление при потушенном экране. На этом же механизме работает таймер отдыха.
  */
 function NotificationCheck() {
   const [status, setStatus] = useState<string | null>(null)
@@ -228,7 +227,7 @@ function SettingsRoot({ data, onOpen }: { data: AppData; onOpen: (view: View) =>
           <span className="flex-1">
             <span className="block">Отдых по умолчанию</span>
             <span className="block text-body text-muted">
-              у ступени может быть свой — с шага 5
+              у ступени может быть свой
             </span>
           </span>
           <button

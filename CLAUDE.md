@@ -40,7 +40,8 @@ npm run dev              # дев-сервер
 npm run dev -- --host    # дев-сервер с доступом по локальной сети (проверка с телефона)
 npm run build            # прод-сборка в dist/
 npm run typecheck        # tsc --noEmit
-npx cap sync android     # перенести dist/ в android-проект
+npm run check            # typecheck + oxlint
+npm run android:sync     # собрать и перенести в android-проект
 ```
 
 Разработка идёт в WebStorm. Android Studio нужна только ради Android SDK — см.
@@ -62,7 +63,8 @@ npx cap sync android     # перенести dist/ в android-проект
 
 | Файл | Когда читать |
 |---|---|
-| [docs/spec.md](docs/spec.md) | что за продукт и зачем, границы MVP |
+| [docs/manual.md](docs/manual.md) | как пользоваться приложением — все фичи и их поведение |
+| [docs/spec.md](docs/spec.md) | что за продукт и зачем, границы |
 | [docs/data-model.md](docs/data-model.md) | работа с сущностями, схемой, миграциями |
 | [docs/progressions.md](docs/progressions.md) | лестницы упражнений, диапазоны, шаблоны дней, seed |
 | [docs/ux.md](docs/ux.md) | экраны, навигация, поведение ввода |

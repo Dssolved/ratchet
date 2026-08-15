@@ -1,8 +1,8 @@
 /**
  * Экспорт и импорт JSON — единственный бэкап приложения.
  *
- * Сделано в шаге 0, до появления данных, которые жалко потерять: бэкенда нет,
- * данные живут только на устройстве. См. docs/decisions.md#д-1.
+ * Бэкенда нет, данные живут только на устройстве, поэтому это единственный способ
+ * их не потерять. См. docs/decisions.md#д-1.
  */
 
 import type { AppData } from '../domain/types.ts'
@@ -35,8 +35,9 @@ export function backupFileName(): string {
 /**
  * Скачивание файла в браузере.
  *
- * ВНИМАНИЕ: внутри Capacitor WebView ссылка с download работает ненадёжно —
- * на шаге 2 здесь появится ветка через @capacitor/filesystem.
+ * ВНИМАНИЕ: внутри Capacitor WebView ссылка с download работает ненадёжно. Если
+ * экспорт на телефоне начнёт молча не срабатывать — добавить ветку через
+ * @capacitor/filesystem. Пока не понадобилось.
  */
 export function downloadBackup(data: AppData): void {
   const json = JSON.stringify(buildBackup(data), null, 2)
