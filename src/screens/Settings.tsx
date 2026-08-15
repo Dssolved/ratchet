@@ -2,8 +2,65 @@ import { useRef, useState } from 'react'
 
 import type { AppData } from '../domain/types.ts'
 import { downloadBackup, importBackupFile } from '../lib/backup.ts'
+import {
+  ensureNotificationPermission,
+  isNative,
+  scheduleIn,
+  TEST_NOTIFICATION_ID,
+} from '../lib/notifications.ts'
 import { pluralize } from '../lib/plural.ts'
 import { selectData, useStore } from '../store/useStore.ts'
+
+/**
+ * Проверка того, ради чего приложение вообще собирается в APK: доходит ли
+ * уведомление при потушенном экране. На шаге 3 этим же механизмом заработает
+ * таймер отдыха.
+ */
+function NotificationCheck() {
+  const [status, setStatus] = useState<string | null>(null)
+  const native = isNative()
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-label tracking-wider text-muted uppercase">Уведомления</h2>
+      {native ? (
+        <>
+          <p className="text-body text-muted">
+            Нажми, заблокируй экран и убери телефон в карман. Уведомление должно прийти
+            через <span className="font-num text-text">15</span> секунд — на этом держится
+            таймер отдыха.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              const allowed = await ensureNotificationPermission()
+              if (!allowed) {
+                setStatus('Разрешение на уведомления не выдано')
+                return
+              }
+              await scheduleIn({
+                id: TEST_NOTIFICATION_ID,
+                seconds: 15,
+                title: 'Отдых окончен',
+                body: 'Так будет выглядеть конец отдыха между подходами.',
+              })
+              setStatus('Запланировано на 15 секунд — блокируй экран')
+            }}
+            className="min-h-12 rounded-ctl border border-border bg-surface-2 px-4 font-medium"
+          >
+            Проверить уведомление
+          </button>
+          {status && <p className="text-body text-accent-ink">{status}</p>}
+        </>
+      ) : (
+        <p className="text-body text-muted">
+          Доступно только в приложении на телефоне: в браузере уведомления при потушенном
+          экране ненадёжны, из-за чего приложение и собирается в APK.
+        </p>
+      )}
+    </section>
+  )
+}
 
 export default function Settings({ data }: { data: AppData }) {
   const replaceAll = useStore((s) => s.replaceAll)
@@ -40,6 +97,8 @@ export default function Settings({ data }: { data: AppData }) {
           Правка справочника движений и ступеней появится вместе с храповиком на шаге 4.
         </p>
       </section>
+
+      <NotificationCheck />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-label tracking-wider text-muted uppercase">Данные</h2>
