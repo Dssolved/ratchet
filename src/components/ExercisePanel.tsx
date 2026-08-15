@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { prefillValue, setsOfMovement } from '../domain/selectors.ts'
+import { prefillValue, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
 import {
   currentStep,
   isMeasured,
@@ -11,6 +11,7 @@ import {
   type Step,
 } from '../domain/types.ts'
 import { tapFeedback } from '../lib/haptics.ts'
+import { unlockAudio } from '../lib/sound.ts'
 import { useRestTimer } from '../store/useRestTimer.ts'
 import { useStore } from '../store/useStore.ts'
 import SetRow from './SetRow.tsx'
@@ -59,6 +60,18 @@ export default function ExercisePanel({
   const logSet = useStore((s) => s.logSet)
   const deleteSet = useStore((s) => s.deleteSet)
   const startRest = useRestTimer((s) => s.start)
+  const dismissRest = useRestTimer((s) => s.dismiss)
+
+  /**
+   * Отмена подхода снимает отдых — но только если отменяют ПОСЛЕДНИЙ записанный
+   * подход тренировки, то есть исправляют мисклик. Если отдыхаешь после третьего
+   * подхода и правишь ошибку во втором, текущий отдых трогать нельзя.
+   */
+  const undoSet = (setId: string) => {
+    const latest = setsOfWorkout(data, workoutId).at(-1)
+    if (latest?.id === setId) dismissRest()
+    deleteSet(setId)
+  }
 
   const done = setsOfMovement(data, workoutId, movement.id)
   const rows = step && isMeasured(step) ? planRows(step.targetSets, step.perSide === true) : []
@@ -142,13 +155,16 @@ export default function ExercisePanel({
                     weightKg: step.weightKg,
                   })
                   void tapFeedback()
+                  // раскрываем аудиоконтекст на жесте: конец отдыха жестом не является,
+                  // а без жеста браузер звук не выпустит
+                  unlockAudio()
                   // отдых стартует после КАЖДОГО подхода, включая последний:
                   // между упражнениями пауза тоже нужна, а предсказуемость важнее
                   // догадливости — лишний отдых убирается одной кнопкой
                   startRest(restSecondsFor(step, data))
                   if (done.length + 1 >= rows.length) onComplete()
                 }}
-                onUndo={(id) => deleteSet(id)}
+                onUndo={undoSet}
               />
             )
           })}
@@ -160,7 +176,7 @@ export default function ExercisePanel({
               type="button"
               onClick={() => {
                 const entry = done[0]
-                if (entry) deleteSet(entry.id)
+                if (entry) undoSet(entry.id)
               }}
               className="flex min-h-14 w-full items-center gap-3 rounded-ctl bg-accent/15 px-4"
             >

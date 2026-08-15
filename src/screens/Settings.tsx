@@ -65,6 +65,7 @@ function NotificationCheck() {
 export default function Settings({ data }: { data: AppData }) {
   const replaceAll = useStore((s) => s.replaceAll)
   const resetToSeed = useStore((s) => s.resetToSeed)
+  const updateSettings = useStore((s) => s.updateSettings)
 
   const fileInput = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
@@ -86,15 +87,48 @@ export default function Settings({ data }: { data: AppData }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-2">
+      <section className="flex flex-col gap-3">
         <h2 className="text-label tracking-wider text-muted uppercase">Тренировки</h2>
         <p className="text-body text-muted">
           Цель: <span className="font-num text-text">{data.settings.weeklyTarget}</span> в неделю.
           Отдых по умолчанию:{' '}
-          <span className="font-num text-text">{data.settings.defaultRestSec}</span> сек.
+          <span className="font-num text-text">
+            {Math.round(data.settings.defaultRestSec / 60)}
+          </span>{' '}
+          мин.
         </p>
+
+        <button
+          type="button"
+          onClick={() => updateSettings({ keepScreenOn: !data.settings.keepScreenOn })}
+          aria-pressed={data.settings.keepScreenOn}
+          className="flex min-h-14 items-center justify-between gap-3 rounded-ctl border border-border bg-surface px-4 text-left"
+        >
+          <span>
+            <span className="block">Не гасить экран</span>
+            <span className="block text-body text-muted">во время тренировки</span>
+          </span>
+          <span
+            className={`h-7 w-12 shrink-0 rounded-full p-1 ${
+              data.settings.keepScreenOn ? 'bg-accent' : 'bg-surface-2'
+            }`}
+          >
+            <span
+              className={`block size-5 rounded-full transition-transform ${
+                data.settings.keepScreenOn
+                  ? 'translate-x-5 bg-on-accent'
+                  : 'translate-x-0 bg-muted'
+              }`}
+            />
+          </span>
+        </button>
         <p className="text-body text-muted">
-          Правка справочника движений и ступеней появится вместе с храповиком на шаге 4.
+          Удобно: видно таймер, не разблокируя телефон. Но экран в кармане ловит случайные
+          нажатия, а батарея садится быстрее.
+        </p>
+
+        <p className="text-body text-muted">
+          Правка справочника упражнений и ступеней появится вместе с храповиком на шаге 4.
         </p>
       </section>
 

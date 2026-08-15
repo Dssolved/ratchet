@@ -93,17 +93,17 @@ function buildMovement(
 
 export function createSeedData(): AppData {
   const movements: Movement[] = [
-    buildMovement('vertical-pull', 'Вертикальная тяга', 'pull', 1, 2, [
-      { name: 'Негативы с прыжка (5 сек опускание)', min: 5, max: 8 },
-      { name: 'Подтягивания', min: 6, max: 10 },
-      { name: 'Подтягивания с весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
+    buildMovement('vertical-pull', 'Подтягивания', 'pull', 1, 2, [
+      { name: 'Негативы с прыжка', min: 5, max: 8 },
+      { name: 'Обычные', min: 6, max: 10 },
+      { name: 'С весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
       { name: 'Лучник', min: 5, max: 8, perSide: true },
       { name: 'На одной руке с поддержкой', min: 4, max: 6, perSide: true },
-      { name: 'Подтягивание на одной руке', binary: true, perSide: true },
+      { name: 'На одной руке', binary: true, perSide: true },
     ]),
 
-    buildMovement('horizontal-pull', 'Горизонтальная тяга', 'pull', 2, 3, [
-      { name: 'Ноги согнуты, перекладина высоко', min: 8, max: 12 },
+    buildMovement('horizontal-pull', 'Австралийские', 'pull', 2, 3, [
+      { name: 'Ноги согнуты', min: 8, max: 12 },
       { name: 'Ноги прямые', min: 8, max: 12 },
       { name: 'Стопы на возвышении', min: 8, max: 12 },
       { name: 'Стопы на возвышении + вес', min: 8, max: 12, progressBy: 'weight', weightKg: 2.5 },
@@ -113,7 +113,7 @@ export function createSeedData(): AppData {
 
     buildMovement(
       'horizontal-push',
-      'Горизонтальный жим',
+      'Отжимания',
       'push',
       3,
       4,
@@ -130,12 +130,12 @@ export function createSeedData(): AppData {
       'на упорах',
     ),
 
-    buildMovement('dip', 'Жим вниз (брусья)', 'push', 4, 5, [
-      { name: 'Трицепсовые от лавочки', min: 8, max: 12 },
-      { name: 'Брусья с поддержкой ног', min: 6, max: 10 },
-      { name: 'Отжимания от брусьев', min: 6, max: 10 },
-      { name: 'Брусья с паузой внизу 2 сек', min: 6, max: 10 },
-      { name: 'Брусья с весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
+    buildMovement('dip', 'Брусья', 'push', 4, 5, [
+      { name: 'Отжимания от лавочки', min: 8, max: 12 },
+      { name: 'С поддержкой ног', min: 6, max: 10 },
+      { name: 'Обычные', min: 6, max: 10 },
+      { name: 'С паузой внизу 2 сек', min: 6, max: 10 },
+      { name: 'С весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
     ]),
 
     buildMovement('legs', 'Ноги', 'legs', 5, 2, [
@@ -153,7 +153,7 @@ export function createSeedData(): AppData {
       { name: 'Пистолетик', binary: true, perSide: true },
     ]),
 
-    buildMovement('core', 'Кор', 'core', 6, 1, [
+    buildMovement('core', 'Пресс', 'core', 6, 1, [
       { name: 'Планка', min: 30, max: 60, unit: 'seconds', restSec: 60 },
       { name: 'Подъём коленей в висе', min: 8, max: 12 },
       { name: 'Подъём прямых ног в висе', min: 8, max: 12 },
@@ -182,9 +182,10 @@ export function createSeedData(): AppData {
     stepChanges: [],
     settings: {
       weeklyTarget: 3,
-      defaultRestSec: 120,
+      defaultRestSec: 180,
       defaultWeightStepKg: 2.5,
       readyAfterSessions: 1,
+      keepScreenOn: true,
     },
   }
 }

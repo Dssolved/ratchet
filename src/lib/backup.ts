@@ -71,7 +71,7 @@ function assertAppData(value: unknown): asserts value is AppData {
     throw new Error('В файле повреждены настройки')
   }
   if (!isArray(data.movements) || data.movements.length === 0) {
-    throw new Error('В файле нет ни одного движения — похоже, это не бэкап Ratchet')
+    throw new Error('В файле нет ни одного упражнения — похоже, это не бэкап Ratchet')
   }
 }
 

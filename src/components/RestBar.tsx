@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { restDoneFeedback } from '../lib/haptics.ts'
+import { playRestTone } from '../lib/sound.ts'
 import { useRestTimer } from '../store/useRestTimer.ts'
 
 function formatClock(totalSeconds: number): string {
@@ -52,9 +53,13 @@ export default function RestBar() {
     }
   }, [endsAt, markFinished])
 
-  // вибрация ровно один раз на переход в «окончен»
+  // вибрация и тон ровно один раз на переход в «окончен».
+  // Тон сыграет, только если приложение открыто; телефон в кармане разбудит
+  // звук уведомления, который проигрывает система.
   useEffect(() => {
-    if (finished) void restDoneFeedback()
+    if (!finished) return
+    void restDoneFeedback()
+    playRestTone()
   }, [finished])
 
   if (endsAt === null) return null

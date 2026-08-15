@@ -74,7 +74,7 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
 
       {adding ? (
         <section className="flex flex-col gap-2 rounded-card border border-border bg-surface p-4">
-          <h2 className="text-label tracking-wider text-muted uppercase">Добавить движение</h2>
+          <h2 className="text-label tracking-wider text-muted uppercase">Добавить упражнение</h2>
           {available.length === 0 && <p className="text-body text-muted">Все уже в тренировке</p>}
           {available.map((movement) => (
             <button
@@ -103,7 +103,7 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
           onClick={() => setAdding(true)}
           className="min-h-12 rounded-ctl border border-border text-body text-muted"
         >
-          + движение
+          + упражнение
         </button>
       )}
 

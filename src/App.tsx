@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
+import { ensureRestChannel } from './lib/notifications.ts'
+import { useWakeLock } from './lib/useWakeLock.ts'
 import History from './screens/History.tsx'
 import Settings from './screens/Settings.tsx'
 import Summary from './screens/Summary.tsx'
@@ -25,11 +27,20 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('today')
   const [finishedId, setFinishedId] = useState<string | null>(null)
 
+  const active = hydrated ? activeWorkout(data) : undefined
+
+  // канал уведомлений создаётся один раз при запуске: планировать в него можно
+  // только после создания
+  useEffect(() => {
+    void ensureRestChannel()
+  }, [])
+
+  useWakeLock(active !== undefined && data.settings.keepScreenOn)
+
   if (!hydrated) {
     return <div className="p-6 text-body text-muted">Загрузка…</div>
   }
 
-  const active = activeWorkout(data)
   const finished = finishedId ? workoutById(data, finishedId) : undefined
 
   return (

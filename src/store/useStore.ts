@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
 
-import type { AppData, SetEntry, Side } from '../domain/types.ts'
+import type { AppData, SetEntry, Settings, Side } from '../domain/types.ts'
 import { localDateString } from '../domain/dates.ts'
 import { createSeedData } from '../data/seed.ts'
 import { migrateData, SCHEMA_VERSION } from './migrations.ts'
@@ -34,6 +34,8 @@ interface Actions {
   finishWorkout: (workoutId: string) => void
   /** Удаляет тренировку вместе с её подходами. */
   deleteWorkout: (workoutId: string) => void
+
+  updateSettings: (patch: Partial<Settings>) => void
 
   /** Полная замена данных — используется импортом JSON. */
   replaceAll: (data: AppData) => void
@@ -138,6 +140,10 @@ export const useStore = create<Store>()(
           workouts: state.workouts.filter((w) => w.id !== workoutId),
           sets: state.sets.filter((s) => s.workoutId !== workoutId),
         }))
+      },
+
+      updateSettings: (patch) => {
+        set((state) => ({ settings: { ...state.settings, ...patch } }))
       },
 
       replaceAll: (data) => {

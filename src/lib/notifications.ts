@@ -14,6 +14,36 @@ export function isNative(): boolean {
   return Capacitor.isNativePlatform()
 }
 
+const REST_CHANNEL_ID = 'rest-timer'
+
+/**
+ * Канал уведомлений объявляется явно, а не берётся по умолчанию: только так
+ * гарантированы звук и вибрация. Звук здесь важнее визуального уведомления —
+ * телефон лежит в кармане, и услышать сигнал проще, чем увидеть.
+ *
+ * ВНИМАНИЕ: настройки канала в Android неизменяемы после создания. Поменять
+ * важность или звук программно уже нельзя — дальше каналом владеет пользователь
+ * через системные настройки. Чтобы изменить поведение, нужен НОВЫЙ канал с новым id,
+ * а старый останется висеть в списке. Поэтому не менять здесь ничего без нужды.
+ */
+export async function ensureRestChannel(): Promise<void> {
+  if (!isNative()) return
+  try {
+    await LocalNotifications.createChannel({
+      id: REST_CHANNEL_ID,
+      name: 'Отдых между подходами',
+      description: 'Сигнал об окончании отдыха',
+      // 5 — максимальная: звук, вибрация и всплывающее уведомление
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+    })
+  } catch {
+    // на несуществующей платформе или при отказе системы просто останемся
+    // без своего канала: уведомление уйдёт в канал по умолчанию
+  }
+}
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (!isNative()) return false
 
@@ -44,6 +74,7 @@ export async function scheduleIn({ id, seconds, title, body }: ScheduleOptions):
         id,
         title,
         body,
+        channelId: REST_CHANNEL_ID,
         schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
       },
     ],

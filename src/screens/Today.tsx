@@ -57,7 +57,7 @@ export default function Today({ data, onStarted }: Props) {
       </p>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-label tracking-wider text-muted uppercase">Движения</h2>
+        <h2 className="text-label tracking-wider text-muted uppercase">Упражнения</h2>
         {data.movements
           .filter((m) => !m.archived)
           .map((movement) => (
