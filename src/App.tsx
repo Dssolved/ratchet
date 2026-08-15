@@ -33,7 +33,8 @@ export default function App() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
-      <main className="flex-1 px-4 pt-6 pb-24">
+      {/* вертикальные безопасные зоны применяются здесь, а не на body — см. index.css */}
+      <main className="flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-8">
         {tab === 'today' &&
           (finished ? (
             <Summary data={data} workout={finished} onDone={() => setFinishedId(null)} />
@@ -54,7 +55,7 @@ export default function App() {
         {tab === 'settings' && <Settings data={data} />}
       </main>
 
-      <nav className="sticky bottom-0 flex border-t border-border bg-bg">
+      <nav className="sticky bottom-0 flex border-t border-border bg-bg pb-[env(safe-area-inset-bottom)]">
         {TABS.map((item) => (
           <button
             key={item.id}
