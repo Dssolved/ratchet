@@ -57,3 +57,6 @@ export async function cancelScheduled(id: number): Promise<void> {
 
 /** Идентификатор проверочного уведомления из настроек. */
 export const TEST_NOTIFICATION_ID = 9001
+
+/** Идентификатор уведомления о конце отдыха. Одно на всё приложение: отдых всегда один. */
+export const REST_NOTIFICATION_ID = 1

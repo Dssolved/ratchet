@@ -8,7 +8,10 @@ import {
   type MeasuredStep,
   type Movement,
   type Side,
+  type Step,
 } from '../domain/types.ts'
+import { tapFeedback } from '../lib/haptics.ts'
+import { useRestTimer } from '../store/useRestTimer.ts'
 import { useStore } from '../store/useStore.ts'
 import SetRow from './SetRow.tsx'
 
@@ -39,6 +42,11 @@ interface Props {
   onComplete: () => void
 }
 
+/** Отдых после подхода: у ступени может быть свой, иначе общий из настроек. */
+function restSecondsFor(step: Step, data: AppData): number {
+  return step.restSec ?? data.settings.defaultRestSec
+}
+
 export default function ExercisePanel({
   data,
   workoutId,
@@ -50,6 +58,7 @@ export default function ExercisePanel({
   const step = currentStep(movement)
   const logSet = useStore((s) => s.logSet)
   const deleteSet = useStore((s) => s.deleteSet)
+  const startRest = useRestTimer((s) => s.start)
 
   const done = setsOfMovement(data, workoutId, movement.id)
   const rows = step && isMeasured(step) ? planRows(step.targetSets, step.perSide === true) : []
@@ -132,6 +141,11 @@ export default function ExercisePanel({
                     durationSec: step.unit === 'seconds' ? value : undefined,
                     weightKg: step.weightKg,
                   })
+                  void tapFeedback()
+                  // отдых стартует после КАЖДОГО подхода, включая последний:
+                  // между упражнениями пауза тоже нужна, а предсказуемость важнее
+                  // догадливости — лишний отдых убирается одной кнопкой
+                  startRest(restSecondsFor(step, data))
                   if (done.length + 1 >= rows.length) onComplete()
                 }}
                 onUndo={(id) => deleteSet(id)}

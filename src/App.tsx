@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
 import History from './screens/History.tsx'
 import Settings from './screens/Settings.tsx'
@@ -55,20 +56,25 @@ export default function App() {
         {tab === 'settings' && <Settings data={data} />}
       </main>
 
-      <nav className="sticky bottom-0 flex border-t border-border bg-bg pb-[env(safe-area-inset-bottom)]">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            className={`min-h-14 flex-1 text-body font-medium ${
-              tab === item.id ? 'text-text' : 'text-muted'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      {/* плашка отдыха и меню липнут к низу одним блоком, иначе при скролле
+          таймер уезжает вверх, а меню остаётся */}
+      <div className="sticky bottom-0 bg-bg pb-[env(safe-area-inset-bottom)]">
+        <RestBar />
+        <nav className="flex border-t border-border">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={`min-h-14 flex-1 text-body font-medium ${
+                tab === item.id ? 'text-text' : 'text-muted'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
     </div>
   )
 }
