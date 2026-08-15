@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Фоновый слой адаптивной иконки Android.
+  Заливается целиком: лаунчер обрежет его под свою форму (круг, квадрат, каплю).
+  Цвет — акцент приложения из src/index.css.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108">
+  <rect width="108" height="108" fill="#c4f531" />
+</svg>

@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Фон БЕЗ отступа: он должен заливать слой целиком, иначе после обрезки квадратной
+  маской по углам вылезет пустота. Генератор @capacitor/assets ставит отступ на оба
+  слоя — это его ошибка, правится здесь. Если запустить генерацию заново, файл
+  перезапишется и правку надо повторить.
+
+  Отступ на переднем слое оставлен: он уводит знак в безопасную зону адаптивной иконки.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground>
+        <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />
+    </foreground>
 </adaptive-icon>
