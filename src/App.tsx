@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 
-import Sandbox from './design/Sandbox.tsx'
 import { currentStep, isMeasured, type Movement } from './domain/types.ts'
 import { downloadBackup, importBackupFile } from './lib/backup.ts'
 import { pluralize } from './lib/plural.ts'
@@ -10,33 +9,9 @@ import { useHydrated } from './store/useHydrated.ts'
 /**
  * Шаг 0: экран-заглушка, подтверждающий, что каркас собран — seed загружен,
  * состояние переживает перезагрузку, экспорт и импорт работают.
- * Настоящий интерфейс тренировки приходит на шаге 1 (docs/ux.md).
+ * Настоящий интерфейс тренировки приходит на шаге 1 (docs/ux.md, docs/design.md).
  */
 export default function App() {
-  const [screen, setScreen] = useState<'design' | 'data'>('design')
-
-  return (
-    <>
-      <div className="flex gap-2 px-3 pt-3">
-        {(['design', 'data'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setScreen(value)}
-            className={`min-h-11 flex-1 rounded-lg px-3 text-sm font-medium ${
-              screen === value ? 'bg-white text-neutral-900' : 'bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            {value === 'design' ? 'Дизайн' : 'Данные'}
-          </button>
-        ))}
-      </div>
-      {screen === 'design' ? <Sandbox /> : <DataScreen />}
-    </>
-  )
-}
-
-function DataScreen() {
   const hydrated = useHydrated()
   const movements = useStore((s) => s.movements)
   const templates = useStore((s) => s.templates)
@@ -48,7 +23,7 @@ function DataScreen() {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   if (!hydrated) {
-    return <div className="p-6 text-muted">Загрузка…</div>
+    return <div className="p-6 text-body text-muted">Загрузка…</div>
   }
 
   async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
@@ -69,25 +44,26 @@ function DataScreen() {
   return (
     <div className="mx-auto max-w-lg px-4 pt-6 pb-16">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Ratchet</h1>
-        <p className="text-sm text-muted">
-          Шаг 0 — каркас. Цель: {settings.weeklyTarget} тренировки в неделю.
+        <h1 className="text-xl font-semibold tracking-tight">Ratchet</h1>
+        <p className="text-body text-muted">
+          Шаг 0 — каркас. Цель:{' '}
+          <span className="font-num text-text">{settings.weeklyTarget}</span> тренировки в неделю.
         </p>
       </header>
 
-      <section className="mb-8 space-y-3">
+      <section className="mb-8 flex flex-col gap-3">
         {movements.map((movement) => (
           <MovementCard key={movement.id} movement={movement} />
         ))}
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-medium text-muted uppercase">Шаблоны</h2>
-        <div className="space-y-2">
+        <h2 className="mb-2 text-label tracking-wider text-muted uppercase">Шаблоны</h2>
+        <div className="flex flex-col gap-2">
           {templates.map((template) => (
             <div
               key={template.id}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="rounded-ctl border border-border bg-surface px-3 py-2 text-body"
             >
               <span className="font-medium">{template.name}</span>{' '}
               <span className="text-muted">
@@ -102,20 +78,20 @@ function DataScreen() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted uppercase">Данные</h2>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-label tracking-wider text-muted uppercase">Данные</h2>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => downloadBackup(selectData(useStore.getState()))}
-            className="min-h-12 rounded-lg bg-accent px-4 font-medium text-bg"
+            className="min-h-12 rounded-ctl border border-border bg-surface-2 px-4 font-medium"
           >
             Экспорт JSON
           </button>
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="min-h-12 rounded-lg border border-border bg-surface px-4 font-medium"
+            className="min-h-12 rounded-ctl border border-border bg-surface-2 px-4 font-medium"
           >
             Импорт JSON
           </button>
@@ -125,7 +101,7 @@ function DataScreen() {
               await resetToSeed()
               setMessage({ text: 'Справочник сброшен к стартовому', error: false })
             }}
-            className="min-h-12 rounded-lg border border-border px-4 font-medium text-danger"
+            className="min-h-12 rounded-ctl border border-border px-4 font-medium text-danger"
           >
             Сбросить
           </button>
@@ -140,7 +116,7 @@ function DataScreen() {
         />
 
         {message && (
-          <p className={`text-sm ${message.error ? 'text-danger' : 'text-ready'}`}>
+          <p className={`text-body ${message.error ? 'text-danger' : 'text-accent-ink'}`}>
             {message.text}
           </p>
         )}
@@ -154,27 +130,32 @@ function MovementCard({ movement }: { movement: Movement }) {
   const total = movement.steps.length
 
   return (
-    <article className="rounded-xl border border-border bg-surface p-4">
+    <article className="rounded-card border border-border bg-surface p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="font-medium">{movement.name}</h3>
-        <span className="text-xs text-muted">
+        <h3 className="text-title font-medium">{movement.name}</h3>
+        <span className="font-num text-label text-muted">
           {movement.maxReachedStepOrder} / {total}
         </span>
       </div>
 
       {step && (
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-body text-muted">
           {step.name}
           {isMeasured(step) && (
             <>
               {' · '}
-              {step.repMin}–{step.repMax}
+              <span className="font-num">
+                {step.repMin}–{step.repMax}
+              </span>
               {step.unit === 'seconds' ? ' сек' : ''}
               {' × '}
-              {step.targetSets}
-              {step.progressBy === 'weight' && step.weightKg !== undefined
-                ? ` · +${step.weightKg} кг`
-                : ''}
+              <span className="font-num">{step.targetSets}</span>
+              {step.progressBy === 'weight' && step.weightKg !== undefined ? (
+                <>
+                  {' · '}
+                  <span className="font-num">+{step.weightKg}</span> кг
+                </>
+              ) : null}
             </>
           )}
           {step.kind === 'binary' && ' · навык'}
@@ -182,16 +163,17 @@ function MovementCard({ movement }: { movement: Movement }) {
         </p>
       )}
 
-      <div className="mt-3 flex gap-1">
+      {/* храповая рейка: текущая насечка выше пройденных и будущих */}
+      <div className="mt-3 flex h-3 items-end gap-1">
         {movement.steps.map((s) => (
           <span
             key={s.id}
-            className={`h-1.5 flex-1 rounded-full ${
+            className={`flex-1 rounded-[2px] ${
               s.order < movement.maxReachedStepOrder
-                ? 'bg-ready/40'
+                ? 'h-1.5 bg-accent/40'
                 : s.order === movement.maxReachedStepOrder
-                  ? 'bg-ready'
-                  : 'bg-surface-2'
+                  ? 'h-3 bg-accent'
+                  : 'h-1.5 bg-surface-2'
             }`}
           />
         ))}

@@ -1,24 +1,59 @@
 @import 'tailwindcss';
 
-/* Tailwind v4: тема задаётся в CSS через @theme, файла tailwind.config.js нет. */
+/*
+  Дизайн-система. Обоснование и правила применения — docs/design.md.
+  Направление «Спорт»: почти чёрный, кислотный чартрёз, моноширинные числа.
+
+  Реализована только тёмная тема (тренировки вечером). Палитра светлой записана
+  в docs/design.md и вводится через переопределение этих же токенов — компоненты
+  не трогаются. Поэтому в разметке НЕ должно быть ни одного цвета мимо токена.
+*/
 @theme {
-  --color-bg: #0b0f14;
-  --color-surface: #131a22;
-  --color-surface-2: #1b242e;
-  --color-border: #263341;
+  /* --- поверхности --- */
+  --color-bg: #0a0a0a;
+  --color-surface: #151515;
+  --color-surface-2: #1f1f1f;
+  --color-border: #2b2b2b;
 
-  --color-text: #e6edf3;
-  --color-muted: #8b9aab;
+  /* --- текст --- */
+  --color-text: #f5f5f4;
+  --color-muted: #8b8b88;
 
-  --color-ready: #3fb950;
-  --color-progress: #d29922;
-  --color-accent: #58a6ff;
-  --color-danger: #f85149;
+  /*
+    Акцент живёт в двух токенах, и это не дублирование:
+    accent     — заливка (кнопка подтверждения, «Перейти», насечка лестницы)
+    accent-ink — акцент в роли текста и точек
+    on-accent  — текст поверх заливки
+    В тёмной теме accent и accent-ink совпадают. В светлой разойдутся: лайм
+    остаётся лаймом в заливке, но как текст на белом он нечитаем.
+  */
+  --color-accent: #c4f531;
+  --color-accent-ink: #c4f531;
+  --color-on-accent: #0a0f02;
+
+  --color-danger: #f87171;
+
+  /* --- типографика --- */
+  --font-num: ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+
+  --text-set: 2.25rem; /* число подхода — главный элемент экрана */
+  --text-set--line-height: 1;
+  --text-timer: 1.75rem; /* таймер отдыха */
+  --text-timer--line-height: 1;
+  --text-value: 1.5rem; /* число в уже отмеченном подходе */
+  --text-value--line-height: 1;
+  --text-title: 0.9375rem; /* названия движений */
+  --text-body: 0.8125rem; /* подписи, диапазоны, «прошлый раз» */
+  --text-label: 0.6875rem; /* метки и статусы */
+
+  /* --- форма --- */
+  --radius-card: 14px;
+  --radius-ctl: 10px;
 }
 
 html {
   background-color: var(--color-bg);
-  /* цифры в подходах не должны прыгать по ширине */
+  /* цифры в подходах не должны прыгать по ширине при 9 → 10 */
   font-variant-numeric: tabular-nums;
   -webkit-text-size-adjust: 100%;
 }
@@ -28,15 +63,29 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  /* безопасные зоны под вырезы и жестовую панель Android */
+  /* безопасные зоны под вырез и жестовую панель Android */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
-  /* во время тренировки случайный свайп не должен тянуть страницу */
+  /* случайный свайп между подходами не должен тянуть страницу */
   overscroll-behavior-y: contain;
 }
 
-/* тач-таргеты не должны подсвечиваться синим при тапе */
 button {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
