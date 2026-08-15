@@ -7,6 +7,7 @@ import {
   nextMilestone,
   PERIODS,
   REP_MILESTONES,
+  thenAndNow,
   totalsByMovement,
   type Period,
 } from '../domain/stats.ts'
@@ -23,6 +24,8 @@ export default function Profile({ data }: { data: AppData }) {
     <div className="flex flex-col gap-6">
       <h1 className="text-title font-semibold">Профиль</h1>
       <Streaks data={data} />
+      <Skills data={data} />
+      <ThenAndNow data={data} />
       <Counters data={data} />
       <AchievementFeed data={data} />
     </div>
@@ -52,6 +55,97 @@ function Streaks({ data }: { data: AppData }) {
         <p className="font-num text-set font-semibold">{streak.longest}</p>
         <p className="text-label text-muted">рекорд стрика</p>
       </div>
+    </section>
+  )
+}
+
+/**
+ * Витрина навыков. Трюк — достижение другого порядка, чем «брусья теперь с 5 кг»:
+ * второе видишь только ты в журнале, первое называешь вслух. Модель у них общая (Д-5),
+ * а подача — нет.
+ */
+function Skills({ data }: { data: AppData }) {
+  const skills = data.movements.filter((m) => m.category === 'skill' && !m.archived)
+  if (skills.length === 0) return null
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-label tracking-wider text-muted uppercase">Навыки</h2>
+      {skills.map((movement) => {
+        const current = movement.steps.find((s) => s.id === movement.currentStepId)
+        const owned = movement.steps.filter((s) => s.order < movement.maxReachedStepOrder)
+        return (
+          <article
+            key={movement.id}
+            className="rounded-card border border-border bg-surface px-4 py-3"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-title font-medium">{movement.name}</span>
+              <span className="font-num text-label text-muted">
+                {movement.maxReachedStepOrder} / {movement.steps.length}
+              </span>
+            </div>
+            <p className="text-body text-muted">
+              сейчас: {current?.name ?? '—'}
+            </p>
+            {owned.length > 0 && (
+              <p className="mt-1 text-label text-accent-ink">
+                освоено: {owned.map((s) => s.name.toLowerCase()).join(' · ')}
+              </p>
+            )}
+            <div className="mt-3 flex h-3 items-end gap-1">
+              {movement.steps.map((s) => (
+                <span
+                  key={s.id}
+                  className={`flex-1 rounded-[2px] ${
+                    s.order < movement.maxReachedStepOrder
+                      ? 'h-1.5 bg-accent/40'
+                      : s.order === movement.maxReachedStepOrder
+                        ? 'h-3 bg-accent'
+                        : 'h-1.5 bg-surface-2'
+                  }`}
+                />
+              ))}
+            </div>
+          </article>
+        )
+      })}
+    </section>
+  )
+}
+
+/**
+ * «Тогда и сейчас» — прямой ответ на исходную жалобу «прогресс невидимый,
+ * непонятно, растёшь ты или топчешься». Ачивка говорит про количество,
+ * а это сравнение отвечает буквально на заданный вопрос.
+ */
+function ThenAndNow({ data }: { data: AppData }) {
+  const comparisons = thenAndNow(data)
+  if (comparisons.length === 0) return null
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-label tracking-wider text-muted uppercase">Тогда и сейчас</h2>
+      {comparisons.map((item) => (
+        <article
+          key={item.movementId}
+          className="rounded-card border border-border bg-surface px-4 py-3"
+        >
+          <p className="text-body font-medium">{item.movementName}</p>
+          <div className="mt-1 flex items-baseline justify-between gap-3 text-body">
+            <span className="text-muted">
+              {item.agoLabel}: {item.thenStep} —{' '}
+              <span className="font-num">{item.thenValue}</span>
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 text-body">
+            <span>
+              сегодня: {item.nowStep} —{' '}
+              <span className="font-num text-accent-ink">{item.nowValue}</span>
+            </span>
+          </div>
+        </article>
+      ))}
     </section>
   )
 }
@@ -153,6 +247,7 @@ function Counters({ data }: { data: AppData }) {
 
 const KIND_MARK: Record<AchievementKind, string> = {
   step: '⚙',
+  skill: '⚙',
   record: '★',
   volume: '∑',
   streak: '▲',
@@ -186,14 +281,16 @@ function AchievementFeed({ data }: { data: AppData }) {
         <div
           key={item.id}
           className={`flex items-baseline gap-3 rounded-ctl border px-3 py-2 ${
-            item.kind === 'step'
-              ? 'border-accent-ink/40 bg-accent/10'
-              : 'border-border bg-surface'
+            item.kind === 'skill'
+              ? 'border-2 border-accent-ink bg-accent/20'
+              : item.kind === 'step'
+                ? 'border-accent-ink/40 bg-accent/10'
+                : 'border-border bg-surface'
           }`}
         >
           <span
             className={`w-4 shrink-0 text-center ${
-              item.kind === 'step' ? 'text-accent-ink' : 'text-muted'
+              item.kind === 'step' || item.kind === 'skill' ? 'text-accent-ink' : 'text-muted'
             }`}
             aria-hidden="true"
           >

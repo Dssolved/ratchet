@@ -155,7 +155,8 @@ function EditableSet({ data, entry }: { data: AppData; entry: SetEntry }) {
       <div className="flex items-center gap-2">
         <span className="w-6 font-num text-body text-muted">{label}</span>
         <span className="flex-1 text-body">
-          {entry.succeeded === true ? 'Получилось' : 'Пробовал'}
+          <span className="font-num">{entry.successes ?? 0}</span> из{' '}
+          <span className="font-num">{entry.attempts ?? 0}</span>
         </span>
         <button
           type="button"

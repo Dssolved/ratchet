@@ -31,6 +31,9 @@ interface MeasuredSpec extends SpecBase {
 
 interface BinarySpec extends SpecBase {
   binary: true
+  /** сколько удачных попыток за тренировку считать ступенью взятой */
+  successes?: number
+  readyAfterSessions?: number
 }
 
 type StepSpec = MeasuredSpec | BinarySpec
@@ -45,6 +48,8 @@ function buildSteps(movementId: string, specs: StepSpec[]): Step[] {
         order,
         name: spec.name,
         kind: 'binary',
+        targetSuccesses: spec.successes ?? 1,
+        readyAfterSessions: spec.readyAfterSessions,
         perSide: spec.perSide,
         restSec: spec.restSec,
       }
@@ -158,6 +163,17 @@ export function createSeedData(): AppData {
       { name: 'Подъём коленей в висе', min: 8, max: 12 },
       { name: 'Подъём прямых ног в висе', min: 8, max: 12 },
       { name: 'Ноги к перекладине', binary: true },
+    ]),
+
+    // Навык. Первые три ступени — обычные подтягивания всё выше, дальше попытки.
+    // Порог строже силовой работы: один случайный выход не означает владения.
+    buildMovement('muscle-up', 'Мышцап', 'skill', 7, 1, [
+      { name: 'Подтягивания до груди', min: 4, max: 8 },
+      { name: 'До низа груди', min: 4, max: 8 },
+      { name: 'До пояса', min: 4, max: 8 },
+      { name: 'Взрывные с отрывом рук', binary: true, successes: 3, readyAfterSessions: 2 },
+      { name: 'Мышцап с киппингом', binary: true, successes: 3, readyAfterSessions: 2 },
+      { name: 'Строгий мышцап', binary: true, successes: 3, readyAfterSessions: 2 },
     ]),
   ]
 

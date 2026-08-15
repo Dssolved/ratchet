@@ -25,7 +25,8 @@ export interface LogSetInput {
   reps?: number
   durationSec?: number
   weightKg?: number
-  succeeded?: boolean
+  attempts?: number
+  successes?: number
   isWarmup?: boolean
 }
 
@@ -154,7 +155,8 @@ export const useStore = create<Store>()(
               reps: input.reps,
               durationSec: input.durationSec,
               weightKg: input.weightKg,
-              succeeded: input.succeeded,
+              attempts: input.attempts,
+              successes: input.successes,
               isWarmup: input.isWarmup ?? false,
             },
           ],
@@ -380,7 +382,7 @@ export const useStore = create<Store>()(
             const base = { id: newId(), order, name: `Ступень ${order}` }
             const step: Step =
               kind === 'binary'
-                ? { ...base, kind: 'binary' }
+                ? { ...base, kind: 'binary', targetSuccesses: 1 }
                 : {
                     ...base,
                     kind: 'measured',

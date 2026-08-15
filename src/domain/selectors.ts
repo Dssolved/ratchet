@@ -127,7 +127,11 @@ function rangeClosedIn(data: AppData, workoutId: string, movement: Movement, ste
       !s.isWarmup,
   )
 
-  if (!isMeasured(step)) return sets.some((s) => s.succeeded === true)
+  if (!isMeasured(step)) {
+    // навык: считаем удачные попытки за тренировку, а не факт «однажды получилось»
+    const successes = sets.reduce((sum, s) => sum + (s.successes ?? 0), 0)
+    return successes >= step.targetSuccesses
+  }
   if (sets.length < requiredSets(step)) return false
   return sets.every((s) => (setValue(s, step) ?? 0) >= step.repMax)
 }
@@ -157,7 +161,8 @@ export function readiness(data: AppData, movement: Movement): Readiness {
 
   if (withStep.length === 0) return 'no_data'
 
-  const need = Math.max(1, data.settings.readyAfterSessions)
+  // порог берём со ступени, если он там задан: навыкам нужен строже силовой работы
+  const need = Math.max(1, step.readyAfterSessions ?? data.settings.readyAfterSessions)
   if (withStep.length < need) return 'in_progress'
 
   const recent = withStep.slice(0, need)

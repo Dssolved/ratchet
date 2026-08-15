@@ -38,10 +38,22 @@ export default function RatchetCard({ movement, onDone }: Props) {
         : next.weightKg
       : undefined
 
+  // взятый навык — событие другого порядка, чем +2.5 кг: то, что говорят вслух.
+  // Подача должна это отражать, хотя механика одна и та же.
+  const isSkill = step.kind === 'binary'
+
   return (
-    <article className="animate-[ratchet_320ms_ease-out] rounded-card border-2 border-accent-ink bg-accent/10 p-4">
-      <p className="text-body font-semibold tracking-wider text-accent-ink uppercase">
-        Ступень взята
+    <article
+      className={`animate-[ratchet_320ms_ease-out] rounded-card border-2 border-accent-ink p-4 ${
+        isSkill ? 'bg-accent/20' : 'bg-accent/10'
+      }`}
+    >
+      <p
+        className={`font-semibold tracking-wider text-accent-ink uppercase ${
+          isSkill ? 'text-title' : 'text-body'
+        }`}
+      >
+        {isSkill ? '⚙ Навык освоен' : 'Ступень взята'}
       </p>
 
       <p className="mt-1 text-title font-medium">

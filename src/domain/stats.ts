@@ -139,6 +139,102 @@ export function recordsInWorkout(data: AppData, workoutId: string): PersonalReco
   return records
 }
 
+export interface Comparison {
+  movementId: string
+  movementName: string
+  agoLabel: string
+  thenStep: string
+  thenValue: string
+  nowStep: string
+  nowValue: string
+}
+
+const HORIZONS: { days: number; label: string }[] = [
+  { days: 365, label: 'год назад' },
+  { days: 180, label: 'полгода назад' },
+  { days: 90, label: 'три месяца назад' },
+  { days: 30, label: 'месяц назад' },
+]
+
+function describeSets(sets: SetEntry[], step: Step): string {
+  if (!isMeasured(step)) {
+    const successes = sets.reduce((sum, s) => sum + (s.successes ?? 0), 0)
+    const attempts = sets.reduce((sum, s) => sum + (s.attempts ?? 0), 0)
+    return `${successes} из ${attempts}`
+  }
+  const values = sets
+    .toSorted((a, b) => a.order - b.order)
+    .map((s) => setValue(s, step) ?? 0)
+  const weight = sets.find((s) => (s.weightKg ?? 0) > 0)?.weightKg
+  const suffix = step.unit === 'seconds' ? ' сек' : ''
+  const body = `${values.join(' · ')}${suffix}`
+  return weight ? `+${weight} кг · ${body}` : body
+}
+
+/**
+ * Сравнение «тогда и сейчас» по каждому упражнению.
+ *
+ * Берётся самый дальний горизонт, для которого есть данные: если истории год —
+ * сравниваем с годом, если только месяц — с месяцем. Показываем не только числа,
+ * но и ступени: рост со «стопы на возвышении 8» до «с весом 10» — совсем не то же
+ * самое, что 8 → 10 на месте.
+ */
+export function thenAndNow(data: AppData): Comparison[] {
+  const result: Comparison[] = []
+  const today = new Date()
+
+  for (const movement of data.movements) {
+    if (movement.archived) continue
+
+    const withSets = data.workouts
+      .filter((w) => data.sets.some((s) => s.workoutId === w.id && s.movementId === movement.id))
+      .toSorted((a, b) => b.startedAt - a.startedAt)
+
+    const latest = withSets[0]
+    if (!latest || withSets.length < 2) continue
+
+    const horizon = HORIZONS.find((h) => {
+      const oldest = withSets.at(-1)
+      if (!oldest) return false
+      const age = Math.round((today.getTime() - parseLocalDate(oldest.date).getTime()) / 86_400_000)
+      return age >= h.days
+    })
+    if (!horizon) continue
+
+    // ближайшая тренировка к нужной давности
+    const targetTime = today.getTime() - horizon.days * 86_400_000
+    const past = withSets.toSorted(
+      (a, b) =>
+        Math.abs(parseLocalDate(a.date).getTime() - targetTime) -
+        Math.abs(parseLocalDate(b.date).getTime() - targetTime),
+    )[0]
+    if (!past || past.id === latest.id) continue
+
+    const setsOf = (workoutId: string) =>
+      data.sets.filter(
+        (s) => s.workoutId === workoutId && s.movementId === movement.id && !s.isWarmup,
+      )
+
+    const thenSets = setsOf(past.id)
+    const nowSets = setsOf(latest.id)
+    const thenStep = movement.steps.find((s) => s.id === thenSets[0]?.stepId)
+    const nowStep = movement.steps.find((s) => s.id === nowSets[0]?.stepId)
+    if (!thenStep || !nowStep || thenSets.length === 0 || nowSets.length === 0) continue
+
+    result.push({
+      movementId: movement.id,
+      movementName: movement.name,
+      agoLabel: horizon.label,
+      thenStep: thenStep.name.toLowerCase(),
+      thenValue: describeSets(thenSets, thenStep),
+      nowStep: nowStep.name.toLowerCase(),
+      nowValue: describeSets(nowSets, nowStep),
+    })
+  }
+
+  return result
+}
+
 export interface ChartPoint {
   date: string
   label: string

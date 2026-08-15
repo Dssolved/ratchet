@@ -10,7 +10,7 @@
 
 import type { AppData } from '../domain/types.ts'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /**
  * Переименование v3: абстрактные названия («Вертикальная тяга», «Горизонтальный жим»)
@@ -108,6 +108,84 @@ const migrations: Record<number, (data: Loose) => Loose> = {
       // поднимаем только прежнее умолчание: своё значение пользователя не трогаем
       if (s.defaultRestSec === 120) s.defaultRestSec = 180
       if (s.keepScreenOn === undefined) s.keepScreenOn = true
+    }
+
+    return data
+  },
+
+  /**
+   * v4: навыки получили счётчик попыток вместо одного бита «получилось».
+   *
+   * Старые записи переносим один к одному: «получилось» → 1 из 1, «пробовал» → 0 из 1.
+   * Журнал при этом не теряется, просто становится беднее ретроспективно — новых данных
+   * из старых взять неоткуда.
+   *
+   * Заодно добавляем готовую лестницу мышцапа, если у пользователя ещё нет ни одного
+   * навыкового упражнения. Добавление аддитивное: журнала не касается, а ненужное
+   * упражнение без истории удаляется одной кнопкой.
+   */
+  4: (data) => {
+    for (const set of asArray(data.sets)) {
+      if (set.succeeded === undefined) continue
+      set.attempts = 1
+      set.successes = set.succeeded === true ? 1 : 0
+      delete set.succeeded
+    }
+
+    for (const movement of asArray(data.movements)) {
+      for (const step of asArray(movement.steps)) {
+        if (step.kind === 'binary' && step.targetSuccesses === undefined) {
+          step.targetSuccesses = 1
+        }
+      }
+    }
+
+    const movements = asArray(data.movements)
+    const hasSkill = movements.some((m) => m.category === 'skill')
+    if (!hasSkill) {
+      const id = 'muscle-up'
+      const steps = [
+        { name: 'Подтягивания до груди', kind: 'measured' as const },
+        { name: 'До низа груди', kind: 'measured' as const },
+        { name: 'До пояса', kind: 'measured' as const },
+        { name: 'Взрывные с отрывом рук', kind: 'binary' as const },
+        { name: 'Мышцап с киппингом', kind: 'binary' as const },
+        { name: 'Строгий мышцап', kind: 'binary' as const },
+      ].map((spec, index) =>
+        spec.kind === 'measured'
+          ? {
+              id: `${id}/${index + 1}`,
+              order: index + 1,
+              name: spec.name,
+              kind: 'measured',
+              unit: 'reps',
+              progressBy: 'variant',
+              repMin: 4,
+              repMax: 8,
+              targetSets: 3,
+            }
+          : {
+              id: `${id}/${index + 1}`,
+              order: index + 1,
+              name: spec.name,
+              kind: 'binary',
+              targetSuccesses: 3,
+              // навыку нужен порог строже: одна удачная попытка не означает владения
+              readyAfterSessions: 2,
+            },
+      )
+
+      movements.push({
+        id,
+        name: 'Мышцап',
+        category: 'skill',
+        steps,
+        currentStepId: `${id}/1`,
+        maxReachedStepOrder: 1,
+        archived: false,
+        sortOrder: movements.length + 1,
+      })
+      data.movements = movements
     }
 
     return data

@@ -6,7 +6,7 @@
  * считаются функциями от этих данных и никогда не попадают в состояние.
  */
 
-export type Category = 'pull' | 'push' | 'legs' | 'core'
+export type Category = 'pull' | 'push' | 'legs' | 'core' | 'skill'
 export type Unit = 'reps' | 'seconds'
 export type ProgressBy = 'variant' | 'weight'
 export type Side = 'both' | 'left' | 'right'
@@ -20,6 +20,12 @@ interface StepBase {
   restSec?: number
   /** упражнение выполняется на каждую сторону отдельно */
   perSide?: boolean
+  /**
+   * Переопределяет Settings.readyAfterSessions.
+   * Навыкам нужен порог строже силовой работы: один случайный мышцап не значит,
+   * что ты им владеешь.
+   */
+  readyAfterSessions?: number
 }
 
 /** Ступень с измеримым результатом: повторения или секунды. */
@@ -37,9 +43,16 @@ export interface MeasuredStep extends StepBase {
   weightStepKg?: number
 }
 
-/** Навыковая ступень: измеряется фактом «получилось / пробовал». */
+/**
+ * Навыковая ступень: измеряется попытками, а не повторениями.
+ *
+ * Реальный прогресс в навыке выглядит как «из шести попыток вышло ноль, потом одна,
+ * потом три» — это и есть кривая освоения. Один бит «получилось / нет» её выбрасывает.
+ */
 export interface BinaryStep extends StepBase {
   kind: 'binary'
+  /** сколько удачных попыток за тренировку считать ступенью взятой */
+  targetSuccesses: number
 }
 
 export type Step = MeasuredStep | BinaryStep
@@ -92,8 +105,10 @@ export interface SetEntry {
   side: Side
   /** разминочные не участвуют в прогрессии и рекордах */
   isWarmup: boolean
-  /** только для BinaryStep */
-  succeeded?: boolean
+  /** только для BinaryStep: сколько раз пробовал */
+  attempts?: number
+  /** только для BinaryStep: сколько раз получилось */
+  successes?: number
 }
 
 export interface StepChange {

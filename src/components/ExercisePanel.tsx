@@ -5,8 +5,10 @@ import {
   currentStep,
   isMeasured,
   type AppData,
+  type BinaryStep,
   type MeasuredStep,
   type Movement,
+  type SetEntry,
   type Side,
   type Step,
 } from '../domain/types.ts'
@@ -170,55 +172,140 @@ export default function ExercisePanel({
           })}
         </div>
       ) : (
-        <div className="mt-4">
-          {done.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => {
-                const entry = done[0]
-                if (entry) undoSet(entry.id)
-              }}
-              className="flex min-h-14 w-full items-center gap-3 rounded-ctl bg-accent/15 px-4"
-            >
-              <span className="text-accent-ink">✓</span>
-              <span>{done[0]?.succeeded === true ? 'Получилось' : 'Пробовал'}</span>
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              {(
-                [
-                  { label: 'Получилось', ok: true },
-                  { label: 'Пробовал', ok: false },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.label}
-                  type="button"
-                  onClick={() => {
-                    logSet({
-                      workoutId,
-                      movementId: movement.id,
-                      stepId: step.id,
-                      order: 1,
-                      side: step.perSide === true ? 'left' : 'both',
-                      succeeded: option.ok,
-                    })
-                    onComplete()
-                  }}
-                  className={`min-h-14 flex-1 rounded-ctl font-semibold ${
-                    option.ok
-                      ? 'bg-accent text-on-accent'
-                      : 'border border-border text-muted'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <SkillAttempts
+          step={step}
+          entry={done[0]}
+          onLog={(attempts, successes) => {
+            logSet({
+              workoutId,
+              movementId: movement.id,
+              stepId: step.id,
+              order: 1,
+              side: step.perSide === true ? 'left' : 'both',
+              attempts,
+              successes,
+            })
+            void tapFeedback()
+            onComplete()
+          }}
+          onUndo={undoSet}
+        />
       )}
     </article>
+  )
+}
+
+function CountRow({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex-1 text-body text-muted">{label}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+        aria-label={`${label}: убавить`}
+      >
+        −
+      </button>
+      <span className="w-12 text-center font-num text-value font-semibold">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+        aria-label={`${label}: прибавить`}
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Ввод навыковой попытки: сколько раз пробовал и сколько получилось.
+ *
+ * Именно дробь и есть кривая освоения навыка — «0 из 6, потом 1 из 6, потом 3 из 6».
+ * Прежнее «получилось / пробовал» эту динамику выбрасывало.
+ */
+function SkillAttempts({
+  step,
+  entry,
+  onLog,
+  onUndo,
+}: {
+  step: BinaryStep
+  entry: SetEntry | undefined
+  onLog: (attempts: number, successes: number) => void
+  onUndo: (setId: string) => void
+}) {
+  const [attempts, setAttempts] = useState(5)
+  const [successes, setSuccesses] = useState(0)
+
+  if (entry) {
+    return (
+      <button
+        type="button"
+        onClick={() => onUndo(entry.id)}
+        className="mt-4 flex min-h-14 w-full items-center gap-3 rounded-ctl bg-accent/15 px-4"
+      >
+        <span className="text-accent-ink">✓</span>
+        <span className="font-num text-value">
+          {entry.successes ?? 0} из {entry.attempts ?? 0}
+        </span>
+        <span className="text-body text-muted">получилось</span>
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-2">
+      <CountRow
+        label="попыток"
+        value={attempts}
+        min={1}
+        max={30}
+        onChange={(v) => {
+          setAttempts(v)
+          if (successes > v) setSuccesses(v)
+        }}
+      />
+      <CountRow
+        label="получилось"
+        value={successes}
+        min={0}
+        max={attempts}
+        onChange={setSuccesses}
+      />
+
+      <p className="text-label text-muted">
+        ступень берётся при <span className="font-num">{step.targetSuccesses}</span> удачных
+        {step.readyAfterSessions !== undefined && (
+          <>
+            {' '}
+            на <span className="font-num">{step.readyAfterSessions}</span> тренировках подряд
+          </>
+        )}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => onLog(attempts, successes)}
+        className="min-h-14 rounded-ctl bg-accent font-semibold text-on-accent"
+      >
+        Записать
+      </button>
+    </div>
   )
 }
 

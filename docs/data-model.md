@@ -27,7 +27,7 @@
 с пояснениями.
 
 ```ts
-type Category   = 'pull' | 'push' | 'legs' | 'core'
+type Category   = 'pull' | 'push' | 'legs' | 'core' | 'skill'
 type Unit       = 'reps' | 'seconds'
 type ProgressBy = 'variant' | 'weight'
 type Side       = 'both' | 'left' | 'right'
@@ -61,6 +61,7 @@ interface StepBase {
   name: string                 // "Подтягивания с весом"
   restSec?: number             // переопределяет settings.defaultRestSec
   perSide?: boolean            // выполняется на каждую сторону отдельно
+  readyAfterSessions?: number  // переопределяет settings.readyAfterSessions
 }
 
 interface MeasuredStep extends StepBase {
@@ -76,6 +77,7 @@ interface MeasuredStep extends StepBase {
 
 interface BinaryStep extends StepBase {
   kind: 'binary'
+  targetSuccesses: number      // сколько удачных попыток за тренировку = ступень взята
 }
 
 type Step = MeasuredStep | BinaryStep
@@ -101,7 +103,8 @@ interface SetEntry {
   weightKg?: number            // фактический вес в этом подходе
   side: Side
   isWarmup: boolean            // разминочные НЕ участвуют в прогрессии и рекордах
-  succeeded?: boolean          // только для kind:'binary'
+  attempts?: number            // только для kind:binary — сколько раз пробовал
+  successes?: number           // только для kind:binary — сколько раз получилось
 }
 
 interface StepChange {
@@ -124,9 +127,10 @@ interface Template {
 
 interface Settings {
   weeklyTarget: number         // 3
-  defaultRestSec: number       // 120
+  defaultRestSec: number       // 180
   defaultWeightStepKg: number  // 2.5
   readyAfterSessions: number   // 1 — сколько тренировок подряд надо закрыть диапазон
+  keepScreenOn: boolean        // не гасить экран во время тренировки
 }
 ```
 
@@ -191,7 +195,9 @@ interface Settings {
 
 Статус для UI: `ready` (зелёный) | `in_progress` (нейтральный) | `no_data`.
 
-Для `kind: 'binary'` готовность = последняя попытка с `succeeded: true`.
+Для `kind: 'binary'` готовность = сумма удачных попыток за тренировку >= `targetSuccesses`.
+Порог по числу тренировок берётся со ступени (`Step.readyAfterSessions`), если задан:
+навыкам нужен строже силовой работы, потому что один случайный мышцап не означает владения.
 
 ### Рекорд (PR)
 

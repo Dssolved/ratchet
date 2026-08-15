@@ -72,6 +72,7 @@ export function weeklyStreak(data: AppData): Streak {
 
 export type AchievementKind =
   | 'step'
+  | 'skill'
   | 'record'
   | 'volume'
   | 'streak'
@@ -114,11 +115,16 @@ export function achievements(data: AppData): Achievement[] {
     if (!movement) continue
 
     const isTop = step?.order === movement.steps.length
+    // взятый навык — событие другого порядка, и называться должно иначе:
+    // «мышцап» говорят вслух, «+2.5 кг на брусьях» — нет
+    const from = movement.steps.find((s) => s.order === change.fromStepOrder)
+    const isSkill = from?.kind === 'binary'
+
     result.push({
       id: `step-${change.id}`,
-      kind: 'step',
+      kind: isSkill ? 'skill' : 'step',
       date: change.date,
-      title: isTop ? 'Вершина лестницы' : 'Ступень взята',
+      title: isSkill ? 'Навык освоен' : isTop ? 'Вершина лестницы' : 'Ступень взята',
       detail:
         change.toWeightKg !== undefined
           ? `${movement.name} · ${step?.name ?? ''} — ${change.toWeightKg} кг`
