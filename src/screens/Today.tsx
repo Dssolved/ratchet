@@ -1,10 +1,6 @@
-import {
-  formatSets,
-  lastSetsOnStep,
-  suggestedTemplateId,
-  weekProgress,
-} from '../domain/selectors.ts'
-import { currentStep, isMeasured, type AppData, type Movement } from '../domain/types.ts'
+import { suggestedTemplateId, weekProgress } from '../domain/selectors.ts'
+import type { AppData } from '../domain/types.ts'
+import MovementCard from '../components/MovementCard.tsx'
 import { useStore } from '../store/useStore.ts'
 
 interface Props {
@@ -61,48 +57,9 @@ export default function Today({ data, onStarted }: Props) {
         {data.movements
           .filter((m) => !m.archived)
           .map((movement) => (
-            <MovementSummary key={movement.id} data={data} movement={movement} />
+            <MovementCard key={movement.id} data={data} movement={movement} />
           ))}
       </section>
     </div>
-  )
-}
-
-function MovementSummary({ data, movement }: { data: AppData; movement: Movement }) {
-  const step = currentStep(movement)
-  if (!step) return null
-
-  const previous = lastSetsOnStep(data, movement.id, step.id).filter((s) => !s.isWarmup)
-
-  return (
-    <article className="rounded-card border border-border bg-surface px-4 py-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-title font-medium">{movement.name}</h3>
-        <span className="font-num text-label text-muted">
-          {movement.maxReachedStepOrder} / {movement.steps.length}
-        </span>
-      </div>
-      <p className="text-body text-muted">
-        {step.name}
-        {isMeasured(step) && (
-          <>
-            {' · '}
-            <span className="font-num">
-              {step.repMin}–{step.repMax}
-            </span>
-            {step.unit === 'seconds' ? ' сек' : ''}
-          </>
-        )}
-      </p>
-      <p className="mt-1 text-body text-muted">
-        {previous.length > 0 ? (
-          <>
-            прошлый раз <span className="font-num text-text">{formatSets(previous, step)}</span>
-          </>
-        ) : (
-          'ещё не делали на этой ступени'
-        )}
-      </p>
-    </article>
   )
 }

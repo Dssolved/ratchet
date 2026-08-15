@@ -35,6 +35,11 @@ interface Actions {
   /** Удаляет тренировку вместе с её подходами. */
   deleteWorkout: (workoutId: string) => void
 
+  /** Щелчок храповика: следующая ступень либо прибавка веса на текущей. */
+  advanceStep: (movementId: string) => void
+  /** Откат вниз. Записывается в лог, но maxReachedStepOrder не убывает. */
+  rollbackStep: (movementId: string) => void
+
   updateSettings: (patch: Partial<Settings>) => void
 
   /** Полная замена данных — используется импортом JSON. */
@@ -140,6 +145,138 @@ export const useStore = create<Store>()(
           workouts: state.workouts.filter((w) => w.id !== workoutId),
           sets: state.sets.filter((s) => s.workoutId !== workoutId),
         }))
+      },
+
+      advanceStep: (movementId) => {
+        set((state) => {
+          const movement = state.movements.find((m) => m.id === movementId)
+          const step = movement?.steps.find((s) => s.id === movement.currentStepId)
+          if (!movement || !step) return {}
+
+          const date = localDateString()
+
+          // весовая ступень: остаёмся на месте, добавляем вес.
+          // Отдельная ступень на каждые +2.5 кг превратила бы лестницу в мусор (Д-8).
+          if (step.kind === 'measured' && step.progressBy === 'weight') {
+            const increment = step.weightStepKg ?? state.settings.defaultWeightStepKg
+            const from = step.weightKg ?? 0
+            const to = from + increment
+
+            return {
+              movements: state.movements.map((m) =>
+                m.id === movementId
+                  ? {
+                      ...m,
+                      steps: m.steps.map((s) => (s.id === step.id ? { ...s, weightKg: to } : s)),
+                    }
+                  : m,
+              ),
+              stepChanges: [
+                ...state.stepChanges,
+                {
+                  id: newId(),
+                  movementId,
+                  date,
+                  direction: 'up' as const,
+                  fromStepOrder: step.order,
+                  toStepOrder: step.order,
+                  fromWeightKg: from,
+                  toWeightKg: to,
+                },
+              ],
+            }
+          }
+
+          const next = movement.steps.find((s) => s.order === step.order + 1)
+          if (!next) return {} // вершина лестницы
+
+          return {
+            movements: state.movements.map((m) =>
+              m.id === movementId
+                ? {
+                    ...m,
+                    currentStepId: next.id,
+                    maxReachedStepOrder: Math.max(m.maxReachedStepOrder, next.order),
+                  }
+                : m,
+            ),
+            stepChanges: [
+              ...state.stepChanges,
+              {
+                id: newId(),
+                movementId,
+                date,
+                direction: 'up' as const,
+                fromStepOrder: step.order,
+                toStepOrder: next.order,
+              },
+            ],
+          }
+        })
+      },
+
+      rollbackStep: (movementId) => {
+        set((state) => {
+          const movement = state.movements.find((m) => m.id === movementId)
+          const step = movement?.steps.find((s) => s.id === movement.currentStepId)
+          if (!movement || !step) return {}
+
+          const date = localDateString()
+
+          // с весовой ступени сначала снимаем вес и только потом уходим на вариант ниже
+          if (step.kind === 'measured' && step.progressBy === 'weight') {
+            const increment = step.weightStepKg ?? state.settings.defaultWeightStepKg
+            const from = step.weightKg ?? 0
+            if (from > increment) {
+              const to = from - increment
+              return {
+                movements: state.movements.map((m) =>
+                  m.id === movementId
+                    ? {
+                        ...m,
+                        steps: m.steps.map((s) => (s.id === step.id ? { ...s, weightKg: to } : s)),
+                      }
+                    : m,
+                ),
+                stepChanges: [
+                  ...state.stepChanges,
+                  {
+                    id: newId(),
+                    movementId,
+                    date,
+                    direction: 'down' as const,
+                    fromStepOrder: step.order,
+                    toStepOrder: step.order,
+                    fromWeightKg: from,
+                    toWeightKg: to,
+                  },
+                ],
+              }
+            }
+          }
+
+          const previous = movement.steps.find((s) => s.order === step.order - 1)
+          if (!previous) return {} // низ лестницы
+
+          return {
+            // maxReachedStepOrder НЕ трогаем: храповик держит рекорд,
+            // даже когда текущее состояние просело (Д-9)
+            movements: state.movements.map((m) =>
+              m.id === movementId ? { ...m, currentStepId: previous.id } : m,
+            ),
+            stepChanges: [
+              ...state.stepChanges,
+              {
+                id: newId(),
+                movementId,
+                date,
+                direction: 'down' as const,
+                fromStepOrder: step.order,
+                toStepOrder: previous.order,
+              },
+            ],
+          }
+        })
       },
 
       updateSettings: (patch) => {

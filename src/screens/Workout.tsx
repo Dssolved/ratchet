@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 import ExercisePanel from '../components/ExercisePanel.tsx'
-import { movementById, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
+import RatchetCard from '../components/RatchetCard.tsx'
+import { movementById, readiness, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
 import { currentStep, isMeasured, type AppData, type Workout } from '../domain/types.ts'
 import { pluralize } from '../lib/plural.ts'
 import { useStore } from '../store/useStore.ts'
@@ -30,6 +31,8 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  /** упражнения, по которым переход уже решён в этой тренировке */
+  const [handled, setHandled] = useState<string[]>([])
 
   const planned = workout.movementIds
   const firstPending = planned.find((id) => !isComplete(data, workout.id, id))
@@ -52,23 +55,38 @@ export default function WorkoutScreen({ data, workout, onFinished }: Props) {
       {planned.map((movementId) => {
         const movement = movementById(data, movementId)
         if (!movement) return null
+
+        // карточка храповика показывается под закрытым упражнением, у которого
+        // диапазон взят и переход ещё не разобран в этой тренировке
+        const showRatchet =
+          isComplete(data, workout.id, movementId) &&
+          !handled.includes(movementId) &&
+          readiness(data, movement) === 'ready'
+
         return (
-          <ExercisePanel
-            key={movementId}
-            data={data}
-            workoutId={workout.id}
-            movement={movement}
-            open={open === movementId}
-            onOpen={() => setOpenId(movementId)}
-            onComplete={() => {
-              // следующее незакрытое движение раскрывается само:
-              // за тренировку не должно быть ни одного действия навигации
-              const next = planned.find(
-                (id) => id !== movementId && !isComplete(data, workout.id, id),
-              )
-              setOpenId(next ?? null)
-            }}
-          />
+          <Fragment key={movementId}>
+            <ExercisePanel
+              data={data}
+              workoutId={workout.id}
+              movement={movement}
+              open={open === movementId}
+              onOpen={() => setOpenId(movementId)}
+              onComplete={() => {
+                // следующее незакрытое упражнение раскрывается само:
+                // за тренировку не должно быть ни одного действия навигации
+                const next = planned.find(
+                  (id) => id !== movementId && !isComplete(data, workout.id, id),
+                )
+                setOpenId(next ?? null)
+              }}
+            />
+            {showRatchet && (
+              <RatchetCard
+                movement={movement}
+                onDone={() => setHandled((ids) => [...ids, movementId])}
+              />
+            )}
+          </Fragment>
         )
       })}
 

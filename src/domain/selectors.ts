@@ -7,7 +7,7 @@
 
 import { currentWeekKey, isoWeekKey } from './dates.ts'
 import type { AppData, MeasuredStep, Movement, SetEntry, Step, Workout } from './types.ts'
-import { isMeasured } from './types.ts'
+import { currentStep, isMeasured } from './types.ts'
 
 /** Незавершённая тренировка. Одновременно может быть только одна. */
 export function activeWorkout(data: AppData): Workout | undefined {
@@ -100,6 +100,82 @@ export function formatSets(sets: SetEntry[], step: Step): string {
     .toSorted((a, b) => a.order - b.order)
     .map((s) => setValue(s, step) ?? '—')
     .join(' · ')
+}
+
+/** Сколько рабочих подходов нужно на ступени: односторонние удваивают. */
+export function requiredSets(step: MeasuredStep): number {
+  return step.targetSets * (step.perSide === true ? 2 : 1)
+}
+
+export function nextStep(movement: Movement): Step | undefined {
+  const step = currentStep(movement)
+  return step ? movement.steps.find((s) => s.order === step.order + 1) : undefined
+}
+
+export function previousStep(movement: Movement): Step | undefined {
+  const step = currentStep(movement)
+  return step ? movement.steps.find((s) => s.order === step.order - 1) : undefined
+}
+
+/** Закрыт ли диапазон этой ступени в конкретной тренировке. */
+function rangeClosedIn(data: AppData, workoutId: string, movement: Movement, step: Step): boolean {
+  const sets = data.sets.filter(
+    (s) =>
+      s.workoutId === workoutId &&
+      s.movementId === movement.id &&
+      s.stepId === step.id &&
+      !s.isWarmup,
+  )
+
+  if (!isMeasured(step)) return sets.some((s) => s.succeeded === true)
+  if (sets.length < requiredSets(step)) return false
+  return sets.every((s) => (setValue(s, step) ?? 0) >= step.repMax)
+}
+
+export type Readiness = 'ready' | 'in_progress' | 'no_data'
+
+/**
+ * Готовность к усложнению — ядро продукта.
+ *
+ * Ступень взята, когда в последних `readyAfterSessions` тренировках с этим упражнением
+ * ВСЕ рабочие подходы дошли до верха диапазона. Разминочные не считаются.
+ *
+ * Незавершённая тренировка тоже учитывается: карточка «Ступень взята» должна появиться
+ * сразу после последнего подхода, а не в следующий раз.
+ */
+export function readiness(data: AppData, movement: Movement): Readiness {
+  const step = currentStep(movement)
+  if (!step) return 'no_data'
+
+  const withStep = data.workouts
+    .filter((w) =>
+      data.sets.some(
+        (s) => s.workoutId === w.id && s.movementId === movement.id && s.stepId === step.id,
+      ),
+    )
+    .toSorted((a, b) => b.startedAt - a.startedAt)
+
+  if (withStep.length === 0) return 'no_data'
+
+  const need = Math.max(1, data.settings.readyAfterSessions)
+  if (withStep.length < need) return 'in_progress'
+
+  const recent = withStep.slice(0, need)
+  return recent.every((w) => rangeClosedIn(data, w.id, movement, step))
+    ? 'ready'
+    : 'in_progress'
+}
+
+/**
+ * Максимальный вес, когда-либо поднятый на этой ступени.
+ *
+ * Не хранится отдельным полем: выводится из журнала, как и всё остальное (Д-3).
+ * Это храповик для весовых ступеней — откат по весу рекорд не стирает.
+ */
+export function maxWeightOnStep(data: AppData, movementId: string, stepId: string): number {
+  return data.sets
+    .filter((s) => s.movementId === movementId && s.stepId === stepId)
+    .reduce((max, s) => Math.max(max, s.weightKg ?? 0), 0)
 }
 
 export interface WeekProgress {

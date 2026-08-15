@@ -62,6 +62,13 @@ function NotificationCheck() {
   )
 }
 
+function formatRest(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  if (minutes === 0) return `${rest}с`
+  return rest === 0 ? `${minutes}:00` : `${minutes}:${String(rest).padStart(2, '0')}`
+}
+
 export default function Settings({ data }: { data: AppData }) {
   const replaceAll = useStore((s) => s.replaceAll)
   const resetToSeed = useStore((s) => s.resetToSeed)
@@ -90,13 +97,41 @@ export default function Settings({ data }: { data: AppData }) {
       <section className="flex flex-col gap-3">
         <h2 className="text-label tracking-wider text-muted uppercase">Тренировки</h2>
         <p className="text-body text-muted">
-          Цель: <span className="font-num text-text">{data.settings.weeklyTarget}</span> в неделю.
-          Отдых по умолчанию:{' '}
-          <span className="font-num text-text">
-            {Math.round(data.settings.defaultRestSec / 60)}
-          </span>{' '}
-          мин.
+          Цель: <span className="font-num text-text">{data.settings.weeklyTarget}</span> тренировки
+          в неделю.
         </p>
+
+        <div className="flex items-center gap-3 rounded-ctl border border-border bg-surface px-4 py-3">
+          <span className="flex-1">
+            <span className="block">Отдых по умолчанию</span>
+            <span className="block text-body text-muted">
+              у ступени может быть свой — с шага 5
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              updateSettings({ defaultRestSec: Math.max(30, data.settings.defaultRestSec - 30) })
+            }
+            className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+            aria-label="Убавить отдых"
+          >
+            −
+          </button>
+          <span className="w-16 text-center font-num text-value">
+            {formatRest(data.settings.defaultRestSec)}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              updateSettings({ defaultRestSec: Math.min(900, data.settings.defaultRestSec + 30) })
+            }
+            className="size-12 shrink-0 rounded-ctl border border-border bg-surface-2 text-xl"
+            aria-label="Прибавить отдых"
+          >
+            +
+          </button>
+        </div>
 
         <button
           type="button"

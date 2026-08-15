@@ -27,3 +27,13 @@ export async function restDoneFeedback(): Promise<void> {
     // см. выше
   }
 }
+
+/** Щелчок храповика — самое сильное событие в приложении, отклик соответствующий. */
+export async function ratchetFeedback(): Promise<void> {
+  if (!isNative()) return
+  try {
+    await Haptics.impact({ style: ImpactStyle.Heavy })
+  } catch {
+    // см. выше
+  }
+}
