@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/* Tailwind v4: тема задаётся в CSS через @theme, файла tailwind.config.js нет. */
+@theme {
+  --color-bg: #0b0f14;
+  --color-surface: #131a22;
+  --color-surface-2: #1b242e;
+  --color-border: #263341;
+
+  --color-text: #e6edf3;
+  --color-muted: #8b9aab;
+
+  --color-ready: #3fb950;
+  --color-progress: #d29922;
+  --color-accent: #58a6ff;
+  --color-danger: #f85149;
+}
+
+html {
+  background-color: var(--color-bg);
+  /* цифры в подходах не должны прыгать по ширине */
+  font-variant-numeric: tabular-nums;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* безопасные зоны под вырезы и жестовую панель Android */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* во время тренировки случайный свайп не должен тянуть страницу */
+  overscroll-behavior-y: contain;
+}
+
+/* тач-таргеты не должны подсвечиваться синим при тапе */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

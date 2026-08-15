@@ -17,21 +17,22 @@
 
 ## Хранилище
 
-Единый JSON-документ `AppState` в IndexedDB (`idb-keyval`), в памяти — Zustand store.
+Единый JSON-документ `AppData` в IndexedDB (`idb-keyval`), в памяти — Zustand store.
 Не SQLite: объём мал, миграции проще, экспорт тривиален, никакого wasm и воркеров.
 Порог пересмотра — см. [decisions.md](decisions.md#д-4-json-документ-вместо-sqlite).
 
 ## Схема
 
+Актуальный источник — [`src/domain/types.ts`](../src/domain/types.ts). Ниже — то же самое
+с пояснениями.
+
 ```ts
 type Category   = 'pull' | 'push' | 'legs' | 'core'
 type Unit       = 'reps' | 'seconds'
-type StepKind   = 'measured' | 'binary'
 type ProgressBy = 'variant' | 'weight'
 type Side       = 'both' | 'left' | 'right'
 
-interface AppState {
-  schemaVersion: number
+interface AppData {
   movements:   Movement[]
   templates:   Template[]
   workouts:    Workout[]
@@ -44,7 +45,6 @@ interface Movement {
   id: string
   name: string                 // "Вертикальная тяга"
   category: Category
-  unit: Unit
   equipment?: string           // "на упорах" — напоминалка, НЕ ступень
   steps: Step[]                // упорядоченные по order
   currentStepId: string
@@ -53,20 +53,32 @@ interface Movement {
   sortOrder: number
 }
 
-interface Step {
+// Step — размеченное объединение: у навыковой ступени нет ни диапазона,
+// ни единиц измерения, и типы это гарантируют.
+interface StepBase {
   id: string
   order: number                // 1..N внутри движения
   name: string                 // "Подтягивания с весом"
-  kind: StepKind
+  restSec?: number             // переопределяет settings.defaultRestSec
+  perSide?: boolean            // выполняется на каждую сторону отдельно
+}
+
+interface MeasuredStep extends StepBase {
+  kind: 'measured'
+  unit: Unit
   progressBy: ProgressBy
   repMin: number               // для unit:'seconds' — секунды
   repMax: number
   targetSets: number
   weightKg?: number            // текущий вес на весовой ступени
   weightStepKg?: number        // шаг прибавки, по умолчанию 2.5
-  restSec?: number             // переопределяет settings.defaultRestSec
-  perSide?: boolean            // упражнение выполняется на каждую сторону отдельно
 }
+
+interface BinaryStep extends StepBase {
+  kind: 'binary'
+}
+
+type Step = MeasuredStep | BinaryStep
 
 interface Workout {
   id: string
@@ -123,11 +135,25 @@ interface Settings {
 на той же ступени. Без этого график снова смешает несравнимые числа — ровно ту проблему,
 ради которой приложение и пишется.
 
-### Почему у `Step` три числовых поля вместо одного
+### Почему `unit` на ступени, а не на движении
 
-`unit` определяет, какое поле заполняется в `SetEntry` (`reps` либо `durationSec`).
-Отдельные нулевые поля вместо одного полиморфного `value` — чтобы типы и графики
-не догадывались о смысле числа по соседнему полю.
+Обнаружено при реализации seed: лестница «Кор» начинается с планки (секунды) и продолжается
+подъёмами ног (повторения). Единица измерения меняется **по ходу лестницы**, и это не
+исключение — переход «изометрический вис → динамические подъёмы» встречается в калистенике
+регулярно. `kind: 'binary'` и так меняет способ измерения на уровне ступени, поэтому `unit`
+принадлежит туда же.
+
+### Почему у `SetEntry` отдельные поля под повторения и секунды
+
+`unit` ступени определяет, какое поле заполняется (`reps` либо `durationSec`). Отдельные
+нулевые поля вместо одного полиморфного `value` — чтобы типы и графики не догадывались
+о смысле числа по соседнему полю.
+
+### Где живёт версия схемы
+
+Не в `AppData`. Версия хранится в обёртке: у persist это поле `version` рядом с `state`,
+у файла бэкапа — поле `schemaVersion` рядом с `data`. Так версия не может разойтись
+с данными при частичной записи и не дублируется в двух местах.
 
 ## Даты
 
@@ -171,10 +197,22 @@ interface Settings {
 Простая сумма `reps` по фильтру (движение / период), включая разминочные — это счётчик
 «сколько раз я вообще оттолкнулся», а не метрика. Помечается в UI соответствующе.
 
+## Гидратация
+
+IndexedDB асинхронна, поэтому persist восстанавливает состояние не мгновенно. До окончания
+гидратации в сторе лежит seed, а не данные пользователя — показывать его нельзя, иначе
+мелькнёт «пустая история». Признак готовности — хук `useHydrated()`.
+
+Отдельная тонкость: persist пишет в хранилище **только при изменении состояния**, поэтому
+после чистой установки там пусто до первого действия пользователя. Незафиксированный seed
+означал бы, что обновление приложения с изменённым справочником молча переставит человеку
+текущие ступени. Поэтому сразу после гидратации состояние записывается как есть
+(`onFinishHydration` в `useStore.ts`).
+
 ## Миграции
 
-`AppState.schemaVersion` + массив функций `(state: any) => any`, применяемых по порядку
-при загрузке из IndexedDB и при импорте JSON.
+`SCHEMA_VERSION` + словарь функций, где ключ `N` — переход из версии `N-1` в `N`.
+Применяются по порядку и при загрузке из IndexedDB, и при импорте JSON.
 
 Правила:
 
