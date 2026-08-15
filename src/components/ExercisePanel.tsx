@@ -101,7 +101,11 @@ export default function ExercisePanel({
           <span className="block text-body text-muted">{step.name}</span>
         </span>
         <span className={`text-body ${complete ? 'text-accent-ink' : 'text-muted'}`}>
-          {complete ? '✓ готово' : `${done.length} из ${isMeasured(step) ? rows.length : 1}`}
+          {complete
+            ? '✓ готово'
+            : isMeasured(step) && step.perSide === true
+              ? `${done.length} из ${step.targetSets} × 2 стороны`
+              : `${done.length} из ${isMeasured(step) ? rows.length : 1}`}
         </span>
       </button>
     )

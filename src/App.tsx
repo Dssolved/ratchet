@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import RestBar from './components/RestBar.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
 import { useBackHandler } from './lib/backHandler.ts'
+import { useRestTimer } from './store/useRestTimer.ts'
 import { ensureRestChannel } from './lib/notifications.ts'
 import { useSystemBack } from './lib/useSystemBack.ts'
 import { useWakeLock } from './lib/useWakeLock.ts'
@@ -32,6 +33,9 @@ export default function App() {
   const [finishedId, setFinishedId] = useState<string | null>(null)
 
   const active = hydrated ? activeWorkout(data) : undefined
+  // плашка отдыха липнет к низу и накрывает конец контента — резервируем под неё место,
+  // иначе кнопка «Завершить тренировку» выглядит обрезанной, а не «прокрути ниже»
+  const resting = useRestTimer((s) => s.endsAt !== null)
 
   // канал уведомлений создаётся один раз при запуске: планировать в него можно
   // только после создания
@@ -60,8 +64,14 @@ export default function App() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
+      {/* контент прокручивается под статус-баром — закрываем его непрозрачной полосой */}
+      <div className="fixed inset-x-0 top-0 z-20 h-[env(safe-area-inset-top)] bg-bg" />
       {/* вертикальные безопасные зоны применяются здесь, а не на body — см. index.css */}
-      <main className="flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-8">
+      <main
+        className={`flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] ${
+          resting ? "pb-28" : "pb-8"
+        }`}
+      >
         {tab === 'today' &&
           (finished ? (
             <Summary data={data} workout={finished} onDone={() => setFinishedId(null)} />

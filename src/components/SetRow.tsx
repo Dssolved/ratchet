@@ -83,7 +83,11 @@ export default function SetRow({
       <button
         type="button"
         onClick={onConfirm}
-        className="size-14 shrink-0 rounded-ctl bg-accent text-xl font-semibold text-on-accent"
+        className={`size-14 shrink-0 rounded-ctl text-xl font-semibold ${
+          dimmed
+            ? "border border-border text-muted"
+            : "bg-accent text-on-accent"
+        }`}
         aria-label={`Засчитать подход ${label}`}
       >
         ✓
