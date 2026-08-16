@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 
 import RestBar from './components/RestBar.tsx'
+import StartBar from './components/StartBar.tsx'
+import {
+  ProfileIcon,
+  ProgressIcon,
+  SettingsIcon,
+  TodayIcon,
+} from './components/TabIcons.tsx'
 import { activeWorkout, workoutById } from './domain/selectors.ts'
 import { useBackHandler } from './lib/backHandler.ts'
+import { useReminder } from './lib/useReminder.ts'
 import { useRestTimer } from './store/useRestTimer.ts'
 import { ensureRestChannel } from './lib/notifications.ts'
 import { useSystemBack } from './lib/useSystemBack.ts'
@@ -18,11 +26,11 @@ import { useHydrated } from './store/useHydrated.ts'
 
 type Tab = 'today' | 'progress' | 'profile' | 'settings'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'today', label: 'Сегодня' },
-  { id: 'progress', label: 'Прогресс' },
-  { id: 'profile', label: 'Профиль' },
-  { id: 'settings', label: 'Настройки' },
+const TABS: { id: Tab; label: string; Icon: (props: { className?: string }) => ReactElement }[] = [
+  { id: 'today', label: 'Сегодня', Icon: TodayIcon },
+  { id: 'progress', label: 'Прогресс', Icon: ProgressIcon },
+  { id: 'profile', label: 'Профиль', Icon: ProfileIcon },
+  { id: 'settings', label: 'Настройки', Icon: SettingsIcon },
 ]
 
 export default function App() {
@@ -45,6 +53,9 @@ export default function App() {
 
   useWakeLock(active !== undefined && data.settings.keepScreenOn)
 
+  // напоминание перепланируется само при запуске и после каждой тренировки
+  useReminder(data)
+
   // «Назад» с экрана итога закрывает его, как кнопка «Готово»
   useBackHandler(finishedId !== null, () => setFinishedId(null))
 
@@ -61,6 +72,9 @@ export default function App() {
   }
 
   const finished = finishedId ? workoutById(data, finishedId) : undefined
+  // полоса «Начать» живёт только там, где начинать есть что: не во время тренировки
+  // и не поверх экрана итога
+  const canStart = tab === 'today' && active === undefined && finished === undefined
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
@@ -69,7 +83,7 @@ export default function App() {
       {/* вертикальные безопасные зоны применяются здесь, а не на body — см. index.css */}
       <main
         className={`flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] ${
-          resting ? "pb-28" : "pb-8"
+          resting ? 'pb-28' : canStart ? 'pb-24' : 'pb-8'
         }`}
       >
         {tab === 'today' &&
@@ -91,6 +105,7 @@ export default function App() {
       {/* плашка отдыха и меню липнут к низу одним блоком, иначе при скролле
           таймер уезжает вверх, а меню остаётся */}
       <div className="sticky bottom-0 bg-bg pb-[env(safe-area-inset-bottom)]">
+        {canStart && <StartBar data={data} onStarted={() => setFinishedId(null)} />}
         <RestBar />
         <nav className="flex border-t border-border">
           {TABS.map((item) => (
@@ -98,10 +113,12 @@ export default function App() {
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`min-h-14 flex-1 text-body font-medium ${
+              aria-current={tab === item.id ? 'page' : undefined}
+              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-label font-medium ${
                 tab === item.id ? 'text-text' : 'text-muted'
               }`}
             >
+              <item.Icon className="size-6" />
               {item.label}
             </button>
           ))}

@@ -5,8 +5,17 @@
  * См. docs/data-model.md#производные-величины и docs/decisions.md#д-3.
  */
 
-import { currentWeekKey, isoWeekKey } from './dates.ts'
-import type { AppData, MeasuredStep, Movement, SetEntry, Step, Workout } from './types.ts'
+import { addDays, currentWeekKey, daysBetween, isoWeekKey, localDateString, weekStart } from './dates.ts'
+import type {
+  AppData,
+  MeasuredStep,
+  Measurement,
+  MeasurementKind,
+  Movement,
+  SetEntry,
+  Step,
+  Workout,
+} from './types.ts'
 import { currentStep, isMeasured } from './types.ts'
 
 /** Незавершённая тренировка. Одновременно может быть только одна. */
@@ -211,6 +220,75 @@ export function weekProgress(data: AppData): WeekProgress {
     (w) => w.finishedAt !== undefined && isoWeekKey(w.date) === week,
   ).length
   return { done, target: data.settings.weeklyTarget }
+}
+
+/** Замеры одного вида от старых к новым. */
+export function measurementsOf(data: AppData, kind: MeasurementKind): Measurement[] {
+  return data.measurements
+    .filter((m) => m.kind === kind)
+    .toSorted((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Последний замер: он же предзаполнение для нового. */
+export function lastMeasurement(data: AppData, kind: MeasurementKind): Measurement | undefined {
+  return measurementsOf(data, kind).at(-1)
+}
+
+export interface WeekDay {
+  /** 'YYYY-MM-DD' */
+  date: string
+  /** 'Пн' — подпись под клеткой */
+  label: string
+  /** сколько тренировок завершено в этот день; обычно 0 или 1 */
+  done: number
+  today: boolean
+  /** день ещё не наступил — рисуется бледнее, но НЕ как пропуск */
+  future: boolean
+}
+
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+
+/**
+ * Семь дней недели, в которую попадает `anchor`, от понедельника.
+ *
+ * Показывает факт и только факт: пропущенный день ничем не помечается особо.
+ * Дневного стрика здесь нет и быть не должно — он толкал бы к перетренированности,
+ * см. Д-10 и Д-27.
+ */
+export function weekDays(data: AppData, anchor: Date = new Date()): WeekDay[] {
+  const monday = weekStart(anchor)
+  const today = localDateString()
+
+  return WEEKDAYS.map((label, index) => {
+    const date = localDateString(addDays(monday, index))
+    return {
+      date,
+      label,
+      done: data.workouts.filter((w) => w.finishedAt !== undefined && w.date === date).length,
+      today: date === today,
+      future: date > today,
+    }
+  })
+}
+
+/** Дата последней завершённой тренировки. */
+export function lastWorkoutDate(data: AppData): string | undefined {
+  let latest: string | undefined
+  for (const workout of data.workouts) {
+    if (workout.finishedAt === undefined) continue
+    if (latest === undefined || workout.date > latest) latest = workout.date
+  }
+  return latest
+}
+
+/**
+ * Сколько дней прошло с последней тренировки. `undefined` — тренировок ещё не было.
+ * Ноль значит «сегодня уже занимался».
+ */
+export function daysSinceLastWorkout(data: AppData): number | undefined {
+  const last = lastWorkoutDate(data)
+  if (last === undefined) return undefined
+  return daysBetween(last, localDateString())
 }
 
 /**

@@ -149,6 +149,48 @@ export interface Comparison {
   nowValue: string
 }
 
+export interface WeightComparison {
+  agoLabel: string
+  /** поле не `then`: объект с таким ключом становится thenable и ломается в await */
+  thenValue: number
+  nowValue: number
+}
+
+/**
+ * Вес тогда и сейчас — тем же горизонтом, что и упражнения.
+ *
+ * Показывается рядом с ними не ради самого веса, а ради контекста: «год назад 78 кг
+ * и обычные 3×8, сегодня 82 кг и с весом +7.5 кг 3×9» — совсем другое высказывание,
+ * чем каждая половина по отдельности (Д-30). Оценки по-прежнему никакой: два числа,
+ * выводы за человеком.
+ */
+export function weightThenAndNow(data: AppData): WeightComparison | undefined {
+  const points = data.measurements
+    .filter((m) => m.kind === 'weight')
+    .toSorted((a, b) => a.date.localeCompare(b.date))
+
+  const now = points.at(-1)
+  const oldest = points[0]
+  if (!now || !oldest || now.id === oldest.id) return undefined
+
+  const today = new Date()
+  const ageOf = (date: string) =>
+    Math.round((today.getTime() - parseLocalDate(date).getTime()) / 86_400_000)
+
+  const horizon = HORIZONS.find((h) => ageOf(oldest.date) >= h.days)
+  if (!horizon) return undefined
+
+  const targetTime = today.getTime() - horizon.days * 86_400_000
+  const past = points.toSorted(
+    (a, b) =>
+      Math.abs(parseLocalDate(a.date).getTime() - targetTime) -
+      Math.abs(parseLocalDate(b.date).getTime() - targetTime),
+  )[0]
+  if (!past || past.id === now.id) return undefined
+
+  return { agoLabel: horizon.label, thenValue: past.value, nowValue: now.value }
+}
+
 const HORIZONS: { days: number; label: string }[] = [
   { days: 365, label: 'год назад' },
   { days: 180, label: 'полгода назад' },
