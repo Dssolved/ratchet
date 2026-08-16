@@ -67,8 +67,8 @@ export default function Today({ data, onStarted }: Props) {
         </p>
       </section>
 
-      {/* заголовок нужен: после Д-28 дни называются как упражнения, и без подписи
-          чип «Подтягивания» стоит вплотную к карточке «Подтягивания» */}
+      {/* заголовок нужен, потому что имя дня ничего о нём не говорит (Д-28):
+          без подписи ряд чипов не отличить от чего угодно другого */}
       <section className="flex flex-col gap-2">
         <h2 className="text-label tracking-wider text-muted uppercase">День</h2>
         <div className="flex flex-wrap gap-2">
