@@ -139,6 +139,32 @@ export interface Settings {
   readyAfterSessions: number
   /** не гасить экран во время тренировки */
   keepScreenOn: boolean
+
+  /** напоминать о тренировке, если отдых затянулся */
+  remindersOn: boolean
+  /** через сколько дней отдыха напоминать */
+  restDaysBetweenWorkouts: number
+  /** час суток для напоминания, 0–23 */
+  reminderHour: number
+}
+
+/**
+ * Замер тела. Пока единственный вид — вес; обхваты добавятся сменой `kind`,
+ * без второй миграции (Д-30).
+ *
+ * Это первая сущность, не выводимая из журнала подходов, и Д-3 она не нарушает:
+ * вес — такой же записанный факт, как подход. Производными из него остаются график
+ * и сравнение, и они по-прежнему не хранятся.
+ */
+export type MeasurementKind = 'weight'
+
+export interface Measurement {
+  id: string
+  /** 'YYYY-MM-DD' в ЛОКАЛЬНОМ времени, как и у тренировок */
+  date: string
+  kind: MeasurementKind
+  /** для 'weight' — килограммы */
+  value: number
 }
 
 /** Всё содержимое хранилища. Версия схемы живёт в обёртке, не здесь. */
@@ -148,6 +174,7 @@ export interface AppData {
   workouts: Workout[]
   sets: SetEntry[]
   stepChanges: StepChange[]
+  measurements: Measurement[]
   settings: Settings
 }
 

@@ -1,12 +1,17 @@
 /**
  * Стартовые данные. Источник — docs/progressions.md.
  *
- * Стартовые ступени выставлены ВЫШЕ привычных вариантов пользователя, а диапазоны
- * опущены в силовые: 3×15 — это выносливость, а не сила. Ожидаемое падение цифр
- * (с 15 до 8) заложено сознательно.
+ * Каждое движение начинается с ПЕРВОЙ ступени, maxReachedStepOrder = 1 (см. Д-24).
+ * Ни ступень, ни рекорд не выдаются авансом: приложение существует ради того, чтобы
+ * честно показывать достигнутое, а назначенная ступень — это не достигнутое.
+ * До реального уровня храповик поднимает за 2–3 тренировки, и каждая ступень
+ * при этом будет заработана.
  *
- * Всё, что ниже стартовой ступени, считается пройденным: maxReachedStepOrder равен
- * номеру стартовой ступени, чтобы сразу была видна история, а не пустой старт.
+ * Ожидаемые ступени из docs/progressions.md остались там гипотезой о том, где человек
+ * окажется, — но выставляет их тренировка, а не seed.
+ *
+ * Диапазоны опущены в силовые: 3×15 — это выносливость, а не сила. Ожидаемое падение
+ * цифр (с 15 до 8) заложено сознательно.
  *
  * Пользователь правит всё это из вкладки «Настройки» — числа здесь гипотеза,
  * которая проверяется первыми тренировками.
@@ -76,21 +81,20 @@ function buildMovement(
   name: string,
   category: Category,
   sortOrder: number,
-  startOrder: number,
   specs: StepSpec[],
   equipment?: string,
 ): Movement {
   const steps = buildSteps(id, specs)
-  const start = steps[startOrder - 1]
-  if (!start) throw new Error(`Нет ступени ${startOrder} у движения ${id}`)
+  const first = steps[0]
+  if (!first) throw new Error(`У движения ${id} нет ни одной ступени`)
   return {
     id,
     name,
     category,
     equipment,
     steps,
-    currentStepId: start.id,
-    maxReachedStepOrder: startOrder,
+    currentStepId: first.id,
+    maxReachedStepOrder: 1,
     archived: false,
     sortOrder,
   }
@@ -98,7 +102,7 @@ function buildMovement(
 
 export function createSeedData(): AppData {
   const movements: Movement[] = [
-    buildMovement('vertical-pull', 'Подтягивания', 'pull', 1, 2, [
+    buildMovement('vertical-pull', 'Подтягивания', 'pull', 1, [
       { name: 'Негативы с прыжка', min: 5, max: 8 },
       { name: 'Обычные', min: 6, max: 10 },
       { name: 'С весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
@@ -107,7 +111,7 @@ export function createSeedData(): AppData {
       { name: 'На одной руке', binary: true, perSide: true },
     ]),
 
-    buildMovement('horizontal-pull', 'Австралийские', 'pull', 2, 3, [
+    buildMovement('horizontal-pull', 'Австралийские', 'pull', 2, [
       { name: 'Ноги согнуты', min: 8, max: 12 },
       { name: 'Ноги прямые', min: 8, max: 12 },
       { name: 'Стопы на возвышении', min: 8, max: 12 },
@@ -121,7 +125,6 @@ export function createSeedData(): AppData {
       'Отжимания',
       'push',
       3,
-      4,
       [
         { name: 'С колен', min: 8, max: 12 },
         { name: 'Обычные', min: 8, max: 12 },
@@ -135,7 +138,7 @@ export function createSeedData(): AppData {
       'на упорах',
     ),
 
-    buildMovement('dip', 'Брусья', 'push', 4, 5, [
+    buildMovement('dip', 'Брусья', 'push', 4, [
       { name: 'Отжимания от лавочки', min: 8, max: 12 },
       { name: 'С поддержкой ног', min: 6, max: 10 },
       { name: 'Обычные', min: 6, max: 10 },
@@ -143,7 +146,7 @@ export function createSeedData(): AppData {
       { name: 'С весом', min: 6, max: 10, progressBy: 'weight', weightKg: 2.5 },
     ]),
 
-    buildMovement('legs', 'Ноги', 'legs', 5, 2, [
+    buildMovement('legs', 'Ноги', 'legs', 5, [
       { name: 'Приседания', min: 12, max: 15 },
       { name: 'Болгарский сплит-присед', min: 8, max: 12, perSide: true },
       {
@@ -158,7 +161,7 @@ export function createSeedData(): AppData {
       { name: 'Пистолетик', binary: true, perSide: true },
     ]),
 
-    buildMovement('core', 'Пресс', 'core', 6, 1, [
+    buildMovement('core', 'Пресс', 'core', 6, [
       { name: 'Планка', min: 30, max: 60, unit: 'seconds', restSec: 60 },
       { name: 'Подъём коленей в висе', min: 8, max: 12 },
       { name: 'Подъём прямых ног в висе', min: 8, max: 12 },
@@ -167,7 +170,7 @@ export function createSeedData(): AppData {
 
     // Навык. Первые три ступени — обычные подтягивания всё выше, дальше попытки.
     // Порог строже силовой работы: один случайный выход не означает владения.
-    buildMovement('muscle-up', 'Мышцап', 'skill', 7, 1, [
+    buildMovement('muscle-up', 'Мышцап', 'skill', 7, [
       { name: 'Подтягивания до груди', min: 4, max: 8 },
       { name: 'До низа груди', min: 4, max: 8 },
       { name: 'До пояса', min: 4, max: 8 },
@@ -180,15 +183,17 @@ export function createSeedData(): AppData {
   return {
     movements,
     templates: [
+      // имя дня сознательно ничего не описывает: оба дня full-body, и одним словом
+      // их не различить без вранья. Состав показан под кнопкой «Начать» (Д-28)
       {
         id: 'day-a',
-        name: 'День A',
+        name: 'Первый день',
         // ноги вторыми, а не последними — иначе они снова не внедрятся
         movementIds: ['vertical-pull', 'legs', 'horizontal-push', 'core'],
       },
       {
         id: 'day-b',
-        name: 'День B',
+        name: 'Второй день',
         movementIds: ['horizontal-pull', 'legs', 'dip', 'core'],
       },
       { id: 'free', name: 'Свободная', movementIds: [] },
@@ -196,12 +201,18 @@ export function createSeedData(): AppData {
     workouts: [],
     sets: [],
     stepChanges: [],
+    measurements: [],
     settings: {
       weeklyTarget: 3,
       defaultRestSec: 180,
       defaultWeightStepKg: 2.5,
       readyAfterSessions: 1,
       keepScreenOn: true,
+      remindersOn: true,
+      // три тренировки в неделю — это примерно день через два
+      restDaysBetweenWorkouts: 2,
+      // тренировки в основном вечером
+      reminderHour: 18,
     },
   }
 }

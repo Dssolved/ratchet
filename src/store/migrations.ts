@@ -10,7 +10,7 @@
 
 import type { AppData } from '../domain/types.ts'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 8
 
 /**
  * Переименование v3: абстрактные названия («Вертикальная тяга», «Горизонтальный жим»)
@@ -188,6 +188,123 @@ const migrations: Record<number, (data: Loose) => Loose> = {
       data.movements = movements
     }
 
+    return data
+  },
+
+  /**
+   * v5: снимаем ступени и рекорды, выданные авансом старым seed (Д-24).
+   *
+   * Прежний seed ставил движение сразу на 4–5 ступень и приравнивал к ней
+   * maxReachedStepOrder, объявляя пройденным то, чего человек не делал. Новый seed так
+   * не делает, но у тех, кто уже пользуется приложением, эти значения лежат в хранилище,
+   * и правка seed их не касается — журнал сбрасывать ради этого нельзя.
+   *
+   * Честная ступень — максимальная из тех, где человек **наследил**:
+   * есть хотя бы один записанный подход, либо записан переход по ступеням (в любую
+   * сторону — с ступени, с которой откатились, тоже сходили). Если следов нет вообще,
+   * движение уходит на первую ступень: значит его просто не делали.
+   *
+   * Текущая ступень опускается только если она ВЫШЕ честной, то есть была назначена,
+   * а не взята. Движение, на котором человек реально тренируется, не двигается никуда:
+   * подходы на нём есть, честная ступень равна текущей.
+   *
+   * Журнала не касается — только два поля движения. Правило миграций соблюдено.
+   */
+  5: (data) => {
+    const sets = asArray(data.sets)
+
+    for (const movement of asArray(data.movements)) {
+      const steps = asArray(movement.steps)
+      const orderOf = new Map<string, number>()
+      for (const step of steps) {
+        if (typeof step.id === 'string' && typeof step.order === 'number') {
+          orderOf.set(step.id, step.order)
+        }
+      }
+
+      let reached = 1
+      const mark = (order: unknown) => {
+        if (typeof order === 'number' && order > reached) reached = order
+      }
+
+      for (const set of sets) {
+        if (set.movementId !== movement.id) continue
+        if (typeof set.stepId === 'string') mark(orderOf.get(set.stepId))
+      }
+
+      for (const change of asArray(data.stepChanges)) {
+        if (change.movementId !== movement.id) continue
+        mark(change.fromStepOrder)
+        mark(change.toStepOrder)
+      }
+
+      if (typeof movement.maxReachedStepOrder === 'number') {
+        movement.maxReachedStepOrder = Math.min(movement.maxReachedStepOrder, reached)
+      } else {
+        movement.maxReachedStepOrder = reached
+      }
+
+      const currentOrder = typeof movement.currentStepId === 'string'
+        ? orderOf.get(movement.currentStepId)
+        : undefined
+      if (currentOrder !== undefined && currentOrder > reached) {
+        const honest = steps.find((s) => s.order === reached)
+        if (honest && typeof honest.id === 'string') movement.currentStepId = honest.id
+      }
+    }
+
+    return data
+  },
+
+  /**
+   * v6: «День A» и «День B» → «Первый день» и «Второй день» (Д-28).
+   *
+   * Старые различались одной буквой **в конце** — та же ошибка, которую v3 чинила
+   * у упражнений: боковым зрением такое не читается, а именно так на них смотрят
+   * под турником. Новые различаются с первого символа.
+   *
+   * Имя при этом ничего не описывает намеренно: оба дня full-body, и назвать день
+   * по упражнению значило бы соврать, что он про это упражнение. Состав показывается
+   * под кнопкой «Начать».
+   *
+   * Переименование по стабильным id и **только если имя не менялось руками**: иначе
+   * миграция затрёт выбор пользователя. Свой день с этими id завестись не мог —
+   * новые создаются со случайными.
+   */
+  6: (data) => {
+    for (const template of asArray(data.templates)) {
+      if (template.id === 'day-a' && template.name === 'День A') {
+        template.name = 'Первый день'
+      }
+      if (template.id === 'day-b' && template.name === 'День B') {
+        template.name = 'Второй день'
+      }
+    }
+    return data
+  },
+
+  /**
+   * v7: появились замеры тела (Д-30). Пустой массив, если его ещё нет.
+   *
+   * Чисто аддитивно: журнала не касается, старый бэкап открывается как есть.
+   */
+  7: (data) => {
+    if (!Array.isArray(data.measurements)) data.measurements = []
+    return data
+  },
+
+  /**
+   * v8: настройки напоминаний о тренировке (Д-29). Только недостающие поля —
+   * уже выставленное пользователем не трогаем.
+   */
+  8: (data) => {
+    const settings = data.settings
+    if (typeof settings === 'object' && settings !== null) {
+      const s = settings as Loose
+      if (s.remindersOn === undefined) s.remindersOn = true
+      if (s.restDaysBetweenWorkouts === undefined) s.restDaysBetweenWorkouts = 2
+      if (s.reminderHour === undefined) s.reminderHour = 18
+    }
     return data
   },
 }

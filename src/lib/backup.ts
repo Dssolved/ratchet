@@ -12,7 +12,7 @@ import { Share } from '@capacitor/share'
 import type { AppData } from '../domain/types.ts'
 import { localDateString } from '../domain/dates.ts'
 import { migrateData, SCHEMA_VERSION } from '../store/migrations.ts'
-import { saveSnapshot } from '../store/storage.ts'
+import { readSnapshot, saveSnapshot } from '../store/storage.ts'
 
 const FORMAT = 'ratchet-backup'
 
@@ -85,7 +85,9 @@ function assertAppData(value: unknown): asserts value is AppData {
   }
   const data = value as Record<string, unknown>
 
-  for (const field of ['movements', 'templates', 'workouts', 'sets', 'stepChanges']) {
+  // measurements появились в v7; до проверки данные уже прошли конвейер миграций,
+  // поэтому поле обязано существовать даже у старого файла
+  for (const field of ['movements', 'templates', 'workouts', 'sets', 'stepChanges', 'measurements']) {
     if (!isArray(data[field])) {
       throw new Error(`В файле повреждено поле «${field}»: ожидался массив`)
     }
@@ -134,5 +136,44 @@ export async function importBackupFile(file: File): Promise<AppData> {
   const data = parseBackup(text)
   // снимок делаем только после успешного разбора: незачем плодить копии на битых файлах
   await saveSnapshot('import')
+  return data
+}
+
+/**
+ * Разбор снимка. Внутри лежит ровно то, что персист пишет в основной ключ:
+ * `{ state, version }` — не файл бэкапа, у него другая обёртка (Д-15).
+ */
+export function parseSnapshot(raw: string): AppData {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error('Снимок повреждён: не разбирается как JSON')
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('Снимок повреждён')
+  }
+
+  const box = parsed as Record<string, unknown>
+  const version = typeof box.version === 'number' ? box.version : SCHEMA_VERSION
+  const migrated = migrateData(box.state, version)
+  assertAppData(migrated)
+  return migrated
+}
+
+/** Содержимое снимка без применения — для списка: что именно в нём лежит. */
+export async function loadSnapshot(key: string): Promise<AppData> {
+  return parseSnapshot(await readSnapshot(key))
+}
+
+/**
+ * Восстановление из снимка.
+ *
+ * Перед заменой делается снимок текущего состояния: восстановиться не в тот снимок —
+ * такая же потеря данных, как всё остальное, от чего этот механизм защищает.
+ */
+export async function restoreSnapshot(key: string): Promise<AppData> {
+  const data = await loadSnapshot(key)
+  await saveSnapshot('restore')
   return data
 }

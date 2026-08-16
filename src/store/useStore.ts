@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import type {
   AppData,
+  MeasurementKind,
   Movement,
   SetEntry,
   Settings,
@@ -64,6 +65,13 @@ interface Actions {
   addTemplate: () => string
   updateTemplate: (id: string, patch: Partial<Omit<Template, 'id'>>) => void
   deleteTemplate: (id: string) => void
+
+  /**
+   * Записывает замер за дату. За один день значение одно: взвешиваются раз в день,
+   * а две записи за то же число превратили бы график в частокол.
+   */
+  setMeasurement: (kind: MeasurementKind, date: string, value: number) => void
+  deleteMeasurement: (id: string) => void
 
   updateSettings: (patch: Partial<Settings>) => void
 
@@ -487,6 +495,26 @@ export const useStore = create<Store>()(
         set((state) => ({ templates: state.templates.filter((t) => t.id !== id) }))
       },
 
+      setMeasurement: (kind, date, value) => {
+        set((state) => {
+          const existing = state.measurements.find((m) => m.kind === kind && m.date === date)
+          if (existing) {
+            return {
+              measurements: state.measurements.map((m) =>
+                m.id === existing.id ? { ...m, value } : m,
+              ),
+            }
+          }
+          return {
+            measurements: [...state.measurements, { id: newId(), date, kind, value }],
+          }
+        })
+      },
+
+      deleteMeasurement: (id) => {
+        set((state) => ({ measurements: state.measurements.filter((m) => m.id !== id) }))
+      },
+
       updateSettings: (patch) => {
         set((state) => ({ settings: { ...state.settings, ...patch } }))
       },
@@ -498,6 +526,7 @@ export const useStore = create<Store>()(
           workouts: data.workouts,
           sets: data.sets,
           stepChanges: data.stepChanges,
+          measurements: data.measurements,
           settings: data.settings,
         })
       },
@@ -518,6 +547,7 @@ export const useStore = create<Store>()(
         workouts: state.workouts,
         sets: state.sets,
         stepChanges: state.stepChanges,
+        measurements: state.measurements,
         settings: state.settings,
       }),
       migrate: (persisted, version) => migrateData(persisted, version),
@@ -544,6 +574,7 @@ export function selectData(state: Store): AppData {
     workouts: state.workouts,
     sets: state.sets,
     stepChanges: state.stepChanges,
+    measurements: state.measurements,
     settings: state.settings,
   }
 }
