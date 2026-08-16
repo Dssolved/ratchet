@@ -44,6 +44,46 @@ export async function ensureRestChannel(): Promise<void> {
   }
 }
 
+const REMINDER_CHANNEL_ID = 'workout-reminder'
+
+/**
+ * Канал напоминаний о тренировке — **отдельный от канала отдыха и намеренно тише**.
+ *
+ * Пихать напоминание в канал таймера нельзя дважды: во-первых, у того важность 5
+ * со звуком и вибрацией, и для «сходи потренируйся» это агрессия; во-вторых, настройки
+ * канала в Android неизменяемы после создания (Д-18), так что смешав их однажды,
+ * разделить обратно уже не выйдет.
+ *
+ * Важность 3 — звук есть, всплывающего окна поверх экрана нет. Совсем беззвучное
+ * напоминание (важность 2) пропускается вместе с остальной пачкой уведомлений и потому
+ * бесполезно.
+ */
+export async function ensureReminderChannel(): Promise<void> {
+  if (!isNative()) return
+  try {
+    await LocalNotifications.createChannel({
+      id: REMINDER_CHANNEL_ID,
+      name: 'Напоминания о тренировке',
+      description: 'Мягкое напоминание, если отдых затянулся',
+      importance: 3,
+      visibility: 1,
+      vibration: false,
+    })
+  } catch {
+    // канал не создался — уведомление уйдёт в канал по умолчанию
+  }
+}
+
+/**
+ * Проверка разрешения БЕЗ запроса. Нужна фоновому планированию: системный диалог
+ * должен появляться в ответ на действие человека, а не сам по себе при запуске.
+ */
+export async function hasNotificationPermission(): Promise<boolean> {
+  if (!isNative()) return false
+  const current = await LocalNotifications.checkPermissions()
+  return current.display === 'granted'
+}
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (!isNative()) return false
 
@@ -81,6 +121,35 @@ export async function scheduleIn({ id, seconds, title, body }: ScheduleOptions):
   })
 }
 
+export interface ScheduleAtOptions {
+  id: number
+  at: Date
+  title: string
+  body: string
+}
+
+/**
+ * Планирование на конкретный момент — для напоминаний о тренировке.
+ *
+ * `allowWhileIdle` здесь тоже нужен, но по другой причине, чем у отдыха: напоминание
+ * приходит вечером, когда телефон часто лежит без движения и система уже в Doze.
+ */
+export async function scheduleAt({ id, at, title, body }: ScheduleAtOptions): Promise<void> {
+  if (!isNative()) return
+
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id,
+        title,
+        body,
+        channelId: REMINDER_CHANNEL_ID,
+        schedule: { at, allowWhileIdle: true },
+      },
+    ],
+  })
+}
+
 export async function cancelScheduled(id: number): Promise<void> {
   if (!isNative()) return
   await LocalNotifications.cancel({ notifications: [{ id }] })
@@ -91,3 +160,6 @@ export const TEST_NOTIFICATION_ID = 9001
 
 /** Идентификатор уведомления о конце отдыха. Одно на всё приложение: отдых всегда один. */
 export const REST_NOTIFICATION_ID = 1
+
+/** Напоминание о тренировке. Тоже одно: их не копят, а перепланируют. */
+export const REMINDER_NOTIFICATION_ID = 2
