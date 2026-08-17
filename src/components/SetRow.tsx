@@ -2,6 +2,11 @@ import type { MeasuredStep, Side } from '../domain/types.ts'
 
 const SIDE_LABEL: Record<Side, string> = { both: '', left: 'Л', right: 'П' }
 
+/** Подпись строки: «1» или «1 Л». */
+export function rowLabel(order: number, side: Side): string {
+  return `${order}${SIDE_LABEL[side] ? ` ${SIDE_LABEL[side]}` : ''}`
+}
+
 /** Шаг степпера: секунды крутить по одной бессмысленно. */
 export function stepAmount(step: MeasuredStep): number {
   return step.unit === 'seconds' ? 5 : 1
@@ -35,8 +40,9 @@ export default function SetRow({
   onConfirm,
   onUndo,
 }: Props) {
-  const label = `${order}${SIDE_LABEL[side] ? ` ${SIDE_LABEL[side]}` : ''}`
+  const label = rowLabel(order, side)
   const amount = stepAmount(step)
+  const timed = step.unit === 'seconds'
 
   if (done) {
     return (
@@ -80,6 +86,8 @@ export default function SetRow({
         +
       </button>
 
+      {/* на секундных ступенях подход не отмечают, а запускают: галочка означала бы
+          «столько я продержусь», то есть обещание вместо факта (Д-34) */}
       <button
         type="button"
         onClick={onConfirm}
@@ -88,9 +96,11 @@ export default function SetRow({
             ? "border border-border text-muted"
             : "bg-accent text-on-accent"
         }`}
-        aria-label={`Засчитать подход ${label}`}
+        aria-label={
+          timed ? `Начать удержание, подход ${label}` : `Засчитать подход ${label}`
+        }
       >
-        ✓
+        {timed ? '▶' : '✓'}
       </button>
     </div>
   )

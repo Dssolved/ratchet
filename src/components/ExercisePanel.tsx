@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
-import { prefillValue, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
+import { prefillValue, sessionStep, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
 import {
   currentStep,
   isMeasured,
@@ -14,9 +14,11 @@ import {
 } from '../domain/types.ts'
 import { tapFeedback } from '../lib/haptics.ts'
 import { unlockAudio } from '../lib/sound.ts'
+import { holdKey, useHoldTimer } from '../store/useHoldTimer.ts'
 import { useRestTimer } from '../store/useRestTimer.ts'
 import { useStore } from '../store/useStore.ts'
-import SetRow from './SetRow.tsx'
+import HoldRow from './HoldRow.tsx'
+import SetRow, { rowLabel } from './SetRow.tsx'
 
 interface PlannedRow {
   order: number
@@ -58,11 +60,21 @@ export default function ExercisePanel({
   onOpen,
   onComplete,
 }: Props) {
-  const step = currentStep(movement)
+  // ступень сессии, а не текущая: после принятого сегодня перехода движение уже
+  // стоит на следующей ступени, но сегодняшняя работа шла на прежней (Д-32)
+  const step = sessionStep(data, workoutId, movement)
+  // если переход уже принят — говорим об этом здесь: карточка «Ступень взята»
+  // после нажатия исчезает, и без подписи кажется, что кнопка ничего не сделала
+  const ahead = step && movement.currentStepId !== step.id ? currentStep(movement) : undefined
   const logSet = useStore((s) => s.logSet)
   const deleteSet = useStore((s) => s.deleteSet)
   const startRest = useRestTimer((s) => s.start)
   const dismissRest = useRestTimer((s) => s.dismiss)
+  const runningHold = useHoldTimer((s) => s.key)
+  const startHold = useHoldTimer((s) => s.start)
+  const stopHold = useHoldTimer((s) => s.stop)
+  /** набранные степпером цели по строкам — переживают подмену строки таймером */
+  const targets = useRef<Record<string, number>>({})
 
   /**
    * Отмена подхода снимает отдых — но только если отменяют ПОСЛЕДНИЙ записанный
@@ -89,6 +101,30 @@ export default function ExercisePanel({
 
   if (!step) return null
 
+  /**
+   * Записать подход и уйти на отдых. Общее для обоих способов отметить подход:
+   * галочки на повторениях и доработавшего таймера удержания.
+   */
+  const commit = (row: PlannedRow, value: number) => {
+    if (!isMeasured(step)) return
+
+    logSet({
+      workoutId,
+      movementId: movement.id,
+      stepId: step.id,
+      order: row.order,
+      side: row.side,
+      reps: step.unit === 'reps' ? value : undefined,
+      durationSec: step.unit === 'seconds' ? value : undefined,
+      weightKg: step.weightKg,
+    })
+    // отдых стартует после КАЖДОГО подхода, включая последний:
+    // между упражнениями пауза тоже нужна, а предсказуемость важнее
+    // догадливости — лишний отдых убирается одной кнопкой
+    startRest(restSecondsFor(step, data))
+    if (done.length + 1 >= rows.length) onComplete()
+  }
+
   if (!open) {
     return (
       <button
@@ -99,6 +135,11 @@ export default function ExercisePanel({
         <span>
           <span className="text-title font-medium">{movement.name}</span>
           <span className="block text-body text-muted">{step.name}</span>
+          {ahead && (
+            <span className="block text-label text-muted">
+              со следующей тренировки — {ahead.name}
+            </span>
+          )}
         </span>
         <span className={`text-body ${complete ? 'text-accent-ink' : 'text-muted'}`}>
           {complete
@@ -133,11 +174,28 @@ export default function ExercisePanel({
         )}
         {movement.equipment ? ` · ${movement.equipment}` : ''}
       </p>
+      {ahead && <p className="text-label text-muted">со следующей тренировки — {ahead.name}</p>}
 
       {isMeasured(step) ? (
         <div className="mt-4 flex flex-col gap-2">
           {rows.map((row, index) => {
             const entry = done.find((s) => s.order === row.order && s.side === row.side)
+            const key = holdKey({ workoutId, movementId: movement.id, ...row })
+
+            if (runningHold === key) {
+              return (
+                <HoldRow
+                  key={`${row.order}-${row.side}`}
+                  label={rowLabel(row.order, row.side)}
+                  onLog={(seconds) => {
+                    stopHold()
+                    commit(row, seconds)
+                  }}
+                  onCancel={stopHold}
+                />
+              )
+            }
+
             return (
               <MeasuredRow
                 key={`${row.order}-${row.side}`}
@@ -149,26 +207,29 @@ export default function ExercisePanel({
                 entryId={entry?.id}
                 entryValue={step.unit === 'seconds' ? entry?.durationSec : entry?.reps}
                 dimmed={index > firstPending}
+                remembered={targets.current[key]}
+                onChange={(value) => {
+                  // цель переживает отменённое удержание: строка на это время
+                  // подменяется таймером и, вернувшись, забыла бы набранное
+                  targets.current[key] = value
+                }}
                 onLog={(value) => {
-                  logSet({
-                    workoutId,
-                    movementId: movement.id,
-                    stepId: step.id,
-                    order: row.order,
-                    side: row.side,
-                    reps: step.unit === 'reps' ? value : undefined,
-                    durationSec: step.unit === 'seconds' ? value : undefined,
-                    weightKg: step.weightKg,
-                  })
                   void tapFeedback()
                   // раскрываем аудиоконтекст на жесте: конец отдыха жестом не является,
                   // а без жеста браузер звук не выпустит
                   unlockAudio()
-                  // отдых стартует после КАЖДОГО подхода, включая последний:
-                  // между упражнениями пауза тоже нужна, а предсказуемость важнее
-                  // догадливости — лишний отдых убирается одной кнопкой
-                  startRest(restSecondsFor(step, data))
-                  if (done.length + 1 >= rows.length) onComplete()
+
+                  if (step.unit === 'seconds') {
+                    // одно удержание за раз: второй «Старт» бросил бы первое молча
+                    if (runningHold !== null) return
+                    // секундная ступень: сначала держим, записываем по факту (Д-34).
+                    // Недосиженный отдых гасим — работа уже началась
+                    dismissRest()
+                    startHold(key, value)
+                    return
+                  }
+
+                  commit(row, value)
                 }}
                 onUndo={undoSet}
               />
@@ -322,6 +383,9 @@ interface RowProps {
   entryId: string | undefined
   entryValue: number | undefined
   dimmed: boolean
+  /** ранее набранное на этой строке; важнее предзаполнения */
+  remembered: number | undefined
+  onChange: (value: number) => void
   onLog: (value: number) => void
   onUndo: (id: string) => void
 }
@@ -335,11 +399,13 @@ function MeasuredRow({
   entryId,
   entryValue,
   dimmed,
+  remembered,
+  onChange,
   onLog,
   onUndo,
 }: RowProps) {
-  const [value, setValue] = useState(() =>
-    prefillValue(data, movementId, step, row.order, row.side, workoutId),
+  const [value, setValue] = useState(
+    () => remembered ?? prefillValue(data, movementId, step, row.order, row.side, workoutId),
   )
 
   return (
@@ -350,7 +416,10 @@ function MeasuredRow({
       value={entryValue ?? value}
       done={entryId !== undefined}
       dimmed={dimmed}
-      onChange={setValue}
+      onChange={(next) => {
+        setValue(next)
+        onChange(next)
+      }}
       onConfirm={() => onLog(value)}
       onUndo={() => {
         if (entryId) onUndo(entryId)
