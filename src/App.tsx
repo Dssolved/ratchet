@@ -44,12 +44,19 @@ export default function App() {
   // плашка отдыха липнет к низу и накрывает конец контента — резервируем под неё место,
   // иначе кнопка «Завершить тренировку» выглядит обрезанной, а не «прокрути ниже»
   const resting = useRestTimer((s) => s.endsAt !== null)
+  const dismissRest = useRestTimer((s) => s.dismiss)
 
   // канал уведомлений создаётся один раз при запуске: планировать в него можно
   // только после создания
   useEffect(() => {
     void ensureRestChannel()
   }, [])
+
+  // Отдых живёт только внутри тренировки. Завершил или отменил — плашке незачем висеть,
+  // а доотсчитавшая до нуля она не гаснет сама и остаётся на экране навсегда.
+  useEffect(() => {
+    if (hydrated && active === undefined && resting) dismissRest()
+  }, [hydrated, active, resting, dismissRest])
 
   useWakeLock(active !== undefined && data.settings.keepScreenOn)
 
