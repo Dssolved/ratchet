@@ -2,8 +2,15 @@ import { Fragment, useState } from 'react'
 
 import ExercisePanel from '../components/ExercisePanel.tsx'
 import RatchetCard from '../components/RatchetCard.tsx'
-import { movementById, readiness, setsOfMovement, setsOfWorkout } from '../domain/selectors.ts'
-import { currentStep, isMeasured, type AppData, type Workout } from '../domain/types.ts'
+import {
+  movementById,
+  readiness,
+  requiredSets,
+  sessionStep,
+  setsOfMovement,
+  setsOfWorkout,
+} from '../domain/selectors.ts'
+import { isMeasured, type AppData, type Workout } from '../domain/types.ts'
 import { useBackHandler } from '../lib/backHandler.ts'
 import { pluralize } from '../lib/plural.ts'
 import { useStore } from '../store/useStore.ts'
@@ -14,15 +21,20 @@ interface Props {
   onFinished: (workoutId: string) => void
 }
 
-/** Считает, закрыто ли движение в этой тренировке. */
+/**
+ * Считает, закрыто ли движение в этой тренировке.
+ *
+ * Обязательно по ступени сессии, а не по текущей: иначе принятый посреди тренировки
+ * переход делает закрытое упражнение незакрытым (Д-32).
+ */
 function isComplete(data: AppData, workoutId: string, movementId: string): boolean {
   const movement = movementById(data, movementId)
-  const step = movement ? currentStep(movement) : undefined
+  const step = movement ? sessionStep(data, workoutId, movement) : undefined
   if (!movement || !step) return true
 
   const done = setsOfMovement(data, workoutId, movementId).length
   if (!isMeasured(step)) return done > 0
-  return done >= step.targetSets * (step.perSide === true ? 2 : 1)
+  return done >= requiredSets(step)
 }
 
 export default function WorkoutScreen({ data, workout, onFinished }: Props) {

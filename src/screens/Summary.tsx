@@ -1,12 +1,13 @@
 import {
   formatSets,
   movementById,
+  sessionStep,
   setsOfMovement,
   weekProgress,
   workoutTotals,
 } from '../domain/selectors.ts'
 import { recordsInWorkout } from '../domain/stats.ts'
-import { currentStep, type AppData, type Workout } from '../domain/types.ts'
+import { type AppData, type Workout } from '../domain/types.ts'
 import { plural } from '../lib/plural.ts'
 
 interface Props {
@@ -92,7 +93,9 @@ export default function Summary({ data, workout, onDone }: Props) {
       <section className="flex flex-col gap-2">
         {workout.movementIds.map((movementId) => {
           const movement = movementById(data, movementId)
-          const step = movement ? currentStep(movement) : undefined
+          // ступень сессии: итог показывает, что делали сегодня, а не то, куда
+          // упражнение уехало принятым в конце тренировки переходом (Д-32)
+          const step = movement ? sessionStep(data, workout.id, movement) : undefined
           if (!movement || !step) return null
 
           const sets = setsOfMovement(data, workout.id, movementId)

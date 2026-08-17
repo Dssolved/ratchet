@@ -16,7 +16,7 @@ import type {
   Step,
   Workout,
 } from './types.ts'
-import { currentStep, isMeasured } from './types.ts'
+import { currentStep, findStep, isMeasured } from './types.ts'
 
 /** Незавершённая тренировка. Одновременно может быть только одна. */
 export function activeWorkout(data: AppData): Workout | undefined {
@@ -42,6 +42,28 @@ export function setsOfWorkout(data: AppData, workoutId: string): SetEntry[] {
 
 export function setsOfMovement(data: AppData, workoutId: string, movementId: string): SetEntry[] {
   return data.sets.filter((s) => s.workoutId === workoutId && s.movementId === movementId)
+}
+
+/**
+ * Ступень, на которой упражнение делается в КОНКРЕТНОЙ тренировке.
+ *
+ * Это не то же самое, что `currentStep`. Переход принимается прямо на экране
+ * тренировки, и сразу после него движение уже стоит на новой ступени, а сегодняшние
+ * подходы записаны на старой. Если считать закрытость и рисовать строки по новой,
+ * тренировка разъезжается: у болгарского сплит-приседа вдвое больше строк, чем
+ * у приседаний, и только что закрытое упражнение снова висит невыполненным (Д-32).
+ *
+ * Ступень берётся из журнала — из `stepId` уже записанных сегодня подходов. Пока
+ * подходов нет, ступень сессии совпадает с текущей.
+ */
+export function sessionStep(
+  data: AppData,
+  workoutId: string,
+  movement: Movement,
+): Step | undefined {
+  const logged = setsOfMovement(data, workoutId, movement.id)[0]
+  const step = logged ? findStep(movement, logged.stepId) : undefined
+  return step ?? currentStep(movement)
 }
 
 /**
