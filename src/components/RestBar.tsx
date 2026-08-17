@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 
 import { restDoneFeedback } from '../lib/haptics.ts'
-import { playRestTone } from '../lib/sound.ts'
+import { playTone } from '../lib/sound.ts'
 import { useRestTimer } from '../store/useRestTimer.ts'
+
+/**
+ * За сколько до конца плашка забирает сигнал себе. Запас нужен, чтобы отмена
+ * уведомления успела дойти до системы: сработавшее уже не отменить.
+ */
+const CLAIM_BEFORE_SEC = 2
 
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds)
@@ -21,9 +27,11 @@ export default function RestBar() {
   const endsAt = useRestTimer((s) => s.endsAt)
   const totalSec = useRestTimer((s) => s.totalSec)
   const finished = useRestTimer((s) => s.finished)
+  const screenOwnsSignal = useRestTimer((s) => s.screenOwnsSignal)
   const addTime = useRestTimer((s) => s.addTime)
   const dismiss = useRestTimer((s) => s.dismiss)
   const markFinished = useRestTimer((s) => s.markFinished)
+  const claimSignal = useRestTimer((s) => s.claimSignal)
 
   const [remaining, setRemaining] = useState(() =>
     endsAt === null ? 0 : Math.ceil((endsAt - Date.now()) / 1000),
@@ -35,6 +43,8 @@ export default function RestBar() {
     const tick = () => {
       const left = Math.ceil((endsAt - Date.now()) / 1000)
       setRemaining(left)
+      // экран виден и конец близко — сигнал наш, уведомление снимаем
+      if (left <= CLAIM_BEFORE_SEC && document.visibilityState === 'visible') claimSignal()
       if (left <= 0) markFinished()
     }
 
@@ -51,16 +61,16 @@ export default function RestBar() {
       clearInterval(id)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [endsAt, markFinished])
+  }, [endsAt, markFinished, claimSignal])
 
-  // вибрация и тон ровно один раз на переход в «окончен».
-  // Тон сыграет, только если приложение открыто; телефон в кармане разбудит
-  // звук уведомления, который проигрывает система.
+  // Ровно один раз на переход в «окончен» — и только если сигнал забрали мы.
+  // Иначе звучит и вибрирует уведомление, а два сигнала разом в потушенный экран —
+  // именно то, что чинит Д-33.
   useEffect(() => {
-    if (!finished) return
+    if (!finished || !screenOwnsSignal) return
     void restDoneFeedback()
-    playRestTone()
-  }, [finished])
+    playTone()
+  }, [finished, screenOwnsSignal])
 
   if (endsAt === null) return null
 

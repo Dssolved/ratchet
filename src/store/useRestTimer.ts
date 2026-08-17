@@ -17,6 +17,10 @@ import {
  * Параллельно планируется нативное уведомление — оно и есть настоящий будильник,
  * отсчёт на экране лишь показывает прогресс, пока на него смотрят.
  *
+ * Сигнал в конце звучит РОВНО ОДИН (Д-33): если экран смотрит на нас, плашка забирает
+ * сигнал себе (`claimSignal`) и снимает запланированное уведомление; если нет —
+ * молчит, и будит системный звук.
+ *
  * В журнал это не попадает: отдых — не факт тренировки. См. docs/decisions.md#д-3.
  */
 
@@ -56,6 +60,11 @@ interface RestTimerState {
   totalSec: number
   /** отдых доотсчитал, но пользователь его ещё не закрыл */
   finished: boolean
+  /**
+   * Сигнал забрал экран: уведомление снято, звучать будет тон приложения.
+   * Пока false — звук за уведомлением, и тон молчит (Д-33).
+   */
+  screenOwnsSignal: boolean
 
   start: (seconds: number) => void
   addTime: (seconds: number) => void
@@ -63,6 +72,8 @@ interface RestTimerState {
   dismiss: () => void
   /** вызывается тикером, когда время вышло */
   markFinished: () => void
+  /** вызывается плашкой перед самым концом, если экран виден */
+  claimSignal: () => void
 }
 
 const restored = load()
@@ -71,10 +82,11 @@ export const useRestTimer = create<RestTimerState>()((set, get) => ({
   endsAt: restored?.endsAt ?? null,
   totalSec: restored?.totalSec ?? 0,
   finished: false,
+  screenOwnsSignal: false,
 
   start: (seconds) => {
     const endsAt = Date.now() + seconds * 1000
-    set({ endsAt, totalSec: seconds, finished: false })
+    set({ endsAt, totalSec: seconds, finished: false, screenOwnsSignal: false })
     save({ endsAt, totalSec: seconds })
 
     void (async () => {
@@ -98,7 +110,8 @@ export const useRestTimer = create<RestTimerState>()((set, get) => ({
     const base = Math.max(current, Date.now())
     const endsAt = base + seconds * 1000
     const totalSec = get().totalSec + seconds
-    set({ endsAt, totalSec, finished: false })
+    // уведомление планируется заново, значит право на сигнал снова у него
+    set({ endsAt, totalSec, finished: false, screenOwnsSignal: false })
     save({ endsAt, totalSec })
 
     void (async () => {
@@ -113,7 +126,7 @@ export const useRestTimer = create<RestTimerState>()((set, get) => ({
   },
 
   dismiss: () => {
-    set({ endsAt: null, totalSec: 0, finished: false })
+    set({ endsAt: null, totalSec: 0, finished: false, screenOwnsSignal: false })
     save(null)
     void cancelScheduled(REST_NOTIFICATION_ID)
   },
@@ -121,5 +134,19 @@ export const useRestTimer = create<RestTimerState>()((set, get) => ({
   markFinished: () => {
     if (get().finished) return
     set({ finished: true })
+  },
+
+  /**
+   * Снять уведомление и взять сигнал на себя.
+   *
+   * Вызывается за пару секунд до конца, а не в ноль: отменить уже сработавшее
+   * уведомление нельзя, и запас нужен на то, чтобы отмена дошла до системы.
+   * Раньше решить не получится — за три минуты вперёд неизвестно, будешь ли ты
+   * смотреть в экран.
+   */
+  claimSignal: () => {
+    if (get().screenOwnsSignal) return
+    set({ screenOwnsSignal: true })
+    void cancelScheduled(REST_NOTIFICATION_ID)
   },
 }))
