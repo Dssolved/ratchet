@@ -76,48 +76,21 @@ function play(notes: Note[]): void {
 }
 
 /**
- * Варианты сигнала конца отдыха.
+ * Сигнал конца отдыха и удержания: «ди-ди · ди-ди».
  *
- * Выбирать их в браузере бессмысленно: судить надо на площадке, на ветру, с телефоном
- * на земле. Поэтому они временно вынесены кнопками в «Настройки» — послушать
- * на месте и оставить один (Д-33).
+ * Выбран на площадке из четырёх вариантов (Д-33) — короткие одинаковые пики бьют через
+ * уличный шум лучше, чем мелодия из разных нот: разбирать интервалы на ветру не нужно,
+ * узнаётся сам рисунок. Проигранные и отвергнутые варианты остались в истории коммитов.
  */
-export type ToneVariant = 'two' | 'rising' | 'double' | 'gong'
-
-export const TONE_VARIANTS: { id: ToneVariant; name: string; hint: string }[] = [
-  { id: 'two', name: 'Две ноты', hint: 'как было, но громче' },
-  { id: 'rising', name: 'Три вверх', hint: 'длиннее, с направлением' },
-  { id: 'double', name: 'Двойной сигнал', hint: 'рисунок «ди-ди · ди-ди»' },
-  { id: 'gong', name: 'Низкий', hint: 'мягче, но плотнее' },
+const REST_TONE: Note[] = [
+  { at: 0, hz: 1318, dur: 0.09 },
+  { at: 0.13, hz: 1318, dur: 0.09 },
+  { at: 0.42, hz: 1318, dur: 0.09 },
+  { at: 0.55, hz: 1318, dur: 0.09 },
 ]
 
-const TONES: Record<ToneVariant, Note[]> = {
-  two: [
-    { at: 0, hz: 880, dur: 0.18 },
-    { at: 0.22, hz: 1174, dur: 0.18 },
-  ],
-  rising: [
-    { at: 0, hz: 784, dur: 0.14 },
-    { at: 0.16, hz: 1046, dur: 0.14 },
-    { at: 0.32, hz: 1568, dur: 0.3 },
-  ],
-  double: [
-    { at: 0, hz: 1318, dur: 0.09 },
-    { at: 0.13, hz: 1318, dur: 0.09 },
-    { at: 0.42, hz: 1318, dur: 0.09 },
-    { at: 0.55, hz: 1318, dur: 0.09 },
-  ],
-  gong: [
-    { at: 0, hz: 392, dur: 0.5 },
-    { at: 0, hz: 588, dur: 0.5, gain: LEVEL * 0.4 },
-  ],
-}
-
-/** Пока варианты не выбраны на площадке, звучит этот. */
-export const CURRENT_TONE: ToneVariant = 'rising'
-
-export function playTone(variant: ToneVariant = CURRENT_TONE): void {
-  play(TONES[variant])
+export function playTone(): void {
+  play(REST_TONE)
 }
 
 /** Обратный отсчёт перед удержанием: три щелчка, чтобы успеть встать в упор. */

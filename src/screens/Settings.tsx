@@ -11,7 +11,6 @@ import {
   scheduleIn,
   TEST_NOTIFICATION_ID,
 } from '../lib/notifications.ts'
-import { CURRENT_TONE, playTone, TONE_VARIANTS, unlockAudio } from '../lib/sound.ts'
 import { useBackHandler } from '../lib/backHandler.ts'
 import { plural, pluralize } from '../lib/plural.ts'
 import { selectData, useStore } from '../store/useStore.ts'
@@ -195,44 +194,6 @@ function NotificationCheck() {
           экране ненадёжны, из-за чего приложение и собирается в APK.
         </p>
       )}
-    </section>
-  )
-}
-
-/**
- * Выбор сигнала конца отдыха — ВРЕМЕННЫЙ блок (Д-33).
- *
- * Слушать варианты в комнате бессмысленно: судить надо на площадке, на ветру,
- * с телефоном на земле. Поэтому они собираются в APK кнопками, а после выбора
- * блок убирается и остаётся один тон.
- */
-function ToneCheck() {
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-label tracking-wider text-muted uppercase">Сигнал конца отдыха</h2>
-      <p className="text-body text-muted">
-        Послушай на площадке и скажи, какой заметнее. Потом останется один.
-      </p>
-      <div className="flex flex-col gap-2">
-        {TONE_VARIANTS.map((variant) => (
-          <button
-            key={variant.id}
-            type="button"
-            onClick={() => {
-              unlockAudio()
-              playTone(variant.id)
-            }}
-            className={`flex min-h-12 items-center justify-between gap-3 rounded-ctl border px-4 text-left ${
-              variant.id === CURRENT_TONE ? 'border-accent' : 'border-border'
-            }`}
-          >
-            <span className="font-medium">{variant.name}</span>
-            <span className="text-body text-muted">
-              {variant.id === CURRENT_TONE ? 'сейчас звучит этот' : variant.hint}
-            </span>
-          </button>
-        ))}
-      </div>
     </section>
   )
 }
@@ -673,8 +634,6 @@ function SettingsRoot({ data, onOpen }: { data: AppData; onOpen: (view: View) =>
       <Reminders data={data} />
 
       <NotificationCheck />
-
-      <ToneCheck />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-label tracking-wider text-muted uppercase">Данные</h2>
